@@ -17,7 +17,7 @@ class TestDeterminism:
         assert a == b
         assert len(a) > 0
 
-    def test_canon_completes_six(self):
+    def test_canon_completes_seven(self):
         events = list(TopoPlayer(parse(CANON_TEXT)).iter_events())
         completes = [e for e in events if isinstance(e, Complete)]
         assert len(completes) == CANON_COMPLETE_COUNT

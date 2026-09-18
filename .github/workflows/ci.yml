@@ -48,7 +48,7 @@ jobs:
       - uses: actions/checkout@v4
       - uses: astral-sh/setup-uv@v5
       - run: uv sync
-      - run: uv run pytest app/tests/test_models.py -q
+      - run: uv run pytest -p no:pytest-qt app/tests/test_models.py -q
 
   suite-events:
     name: "L2-T3 events 红测试（绿=T3验收）"
