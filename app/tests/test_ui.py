@@ -33,6 +33,8 @@ class TestEndToEnd:
     def test_paste_start_results(self, win):
         win.set_input(CANON)
         win.click_start()
+        # 6 已过时（2026-09-19 修正为 7，见 evidence/decisions/2026-09-19-标准图数量修正.md）
+        # T5 实装时改为 == CANON_COMPLETE_COUNT（refs #13）
         assert len(win.results()) == 6
 
     def test_cycle_error_message(self, win):

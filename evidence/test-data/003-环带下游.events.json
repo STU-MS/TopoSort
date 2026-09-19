@@ -1,0 +1,2 @@
+[{"type": "DeadEnd", "branch_id": 0, "stuck_nodes": ["A", "B", "C"]},
+ {"type": "CycleFound", "stuck_nodes": ["A", "B", "C"]}]

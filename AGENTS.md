@@ -48,7 +48,7 @@ TopoSort/
 │   ├── decisions/       # 已定稿决策：YYYY-MM-DD-主题.md（与 GitHub issue 一一对应）
 │   ├── screenshots/     # 截图：功能名-日期-N.png，每完成一个可见效果立刻截
 │   ├── benchmarks.csv   # 性能数据，一行一条：日期,用例名,节点数,边数,结果数,耗时ms,模式
-│   └── test-data/       # 测试用例：编号-描述.in / .expected
+│   └── test-data/       # 测试用例：编号-描述.in / .expected / .events.json（事件流 golden，tools/gen_golden_events.py 生成）
 ├── tools/               # 辅助脚本（.doc 文本提取、md→PDF 等）
 └── docs/                # 老师下发的原始作业文件（只读，勿改）
 ```
