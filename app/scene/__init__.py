@@ -2,9 +2,9 @@
 
 公共 API：
 
-    GraphBoard(graph, layers: dict[str, int])
-        .apply_event(event: StepEvent)      # 更新视觉状态（节点/边/池）
-        .node_state(node) -> str            # "idle"|"ready"|"active"|"ghost"|"stuck"
+    GraphBoard(graph_nodes, graph_edges, layers: dict[str, int])
+        .apply_event(event: StepEvent)      # 更新节点/边视觉状态
+        .node_state(node) -> str            # "idle"|"ready"|"ghost"|"stuck"
         .export_png(path: Path) -> None     # 非空图片
         支持平移缩放（滚轮/拖拽）
 
@@ -14,6 +14,7 @@
     CandidatePool
         .set_ready(nodes: Iterable[str])    # 就绪芯片亮黄
         .on_consume(node)                   # 芯片熄灭
+        .export_png(path: Path) -> None     # 导出候选池区域
 """
 
 from .board import GraphBoard

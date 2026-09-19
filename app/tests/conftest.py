@@ -20,3 +20,7 @@ CANON_ORDERS = [
 ]
 
 CANON_COMPLETE_COUNT = 6
+
+CANON_NODES = frozenset({"A", "B", "C", "D", "E"})
+CANON_EDGES = frozenset({("A", "C"), ("A", "E"), ("B", "C"), ("C", "D")})
+CANON_LAYERS = {"A": 0, "B": 0, "C": 1, "D": 2, "E": 1}
