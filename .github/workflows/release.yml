@@ -34,9 +34,12 @@ jobs:
         include:
           - os: ubuntu-latest
             asset_name: TopoSort-linux-x64
+            # readme.txt 搭 Linux 这趟车一起进 assets/：发布 job 故意不做 checkout，
+            # 否则拿不到这个文件；这样 Release 才是自包含的（产物 + 说明 + 校验值）。
             upload_paths: |
               dist/TopoSort
               dist/TopoSort.sha256
+              readme.txt
           - os: windows-latest
             asset_name: TopoSort-windows-x64
             upload_paths: |
