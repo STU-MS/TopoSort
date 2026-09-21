@@ -88,6 +88,12 @@ jobs:
     # 只在 tag 推送时发布；workflow_dispatch 手动跑时只到 build 为止（等于预演）
     if: startsWith(github.ref, 'refs/tags/')
     runs-on: ubuntu-latest
+    env:
+      # 本 job 刻悥不做 actions/checkout（不需要源码，只需产物），因此没有 .git 目录，
+      # gh 无法自行推断仓库——必须显式给 GH_REPO，否则报：
+      #   failed to run git: fatal: not a git repository (or any of the parent directories): .git
+      GH_REPO: ${{ github.repository }}
+      GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
     steps:
       - uses: actions/download-artifact@v4
         with:
@@ -105,8 +111,6 @@ jobs:
           sha256sum -c ./*.sha256
 
       - name: 创建/更新 Release 并上传三份产物
-        env:
-          GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
         run: |
           set -euo pipefail
           TAG="${GITHUB_REF_NAME}"
