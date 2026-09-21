@@ -112,7 +112,12 @@ jobs:
 
   build-windows-exe:
     # Windows 单文件产物：只有在 Windows 上才能打包，由 CI 代工。
-    # L1 全绿即触发（不等模块完成）；产物含占位界面直到 T6 完成。
+    # L1 全绿即触发（不等模块完成）。
+    #
+    # 命令统一走 tools/build.py（三端一致入口，见 Issue #8）。
+    # 早前这里是裸 `pyinstaller --onefile --window app/main.py`，未传 --name，
+    # 所以产物名是 main.exe 而非 TopoSort.exe，交付时不好认。
+    # 加 --smoke 是为了让 CI 真的验证 Windows 产物能启动，而不只是“构建成功”。
     if: github.event_name == 'push' && github.ref == 'refs/heads/master'
     needs: infra
     runs-on: windows-latest
@@ -120,11 +125,11 @@ jobs:
       - uses: actions/checkout@v4
       - uses: astral-sh/setup-uv@v5
       - run: uv sync
-      - name: PyInstaller 打包
-        run: uv run pyinstaller --onefile --window app/main.py
+      - name: 打包 + 空目录启动冒烟（tools/build.py）
+        run: uv run python tools/build.py --smoke
       - name: 计算校验和
         shell: pwsh
-        run: Get-FileHash dist/*.exe -Algorithm SHA256 | Out-File dist/SHA256.txt
+        run: Get-FileHash dist/TopoSort.exe -Algorithm SHA256 | Out-File dist/SHA256.txt
       - uses: actions/upload-artifact@v4
         with:
           name: TopoSort-windows-x64
