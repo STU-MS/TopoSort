@@ -164,6 +164,24 @@ SMOKE_FAIL_MARKERS = [
 ]
 
 
+def force_utf8_stdio() -> None:
+    """把 stdout/stderr 切到 UTF-8。
+
+    为什么需要：Windows 控制台默认不是 UTF-8（cp936 / cp1252），脚本一 print 中文就抛
+    UnicodeEncodeError: 'charmap' codec can't encode —— CI 上表现为「打包步骤 10 秒就退出」，
+    PyInstaller 根本没跑起来。这是本脚本在 Windows 上翻过的真坑。
+    errors="replace" 保证任何环境下都不会因为「打印一句话」而崩。
+    """
+    for stream in (sys.stdout, sys.stderr):
+        reconfigure = getattr(stream, "reconfigure", None)
+        if reconfigure is None:
+            continue
+        try:
+            reconfigure(encoding="utf-8", errors="replace")
+        except (ValueError, OSError):  # 已被重定向/包装过的流，忽略
+            pass
+
+
 def human_mb(num_bytes: int) -> str:
     return f"{num_bytes / 1024 / 1024:.1f} MB"
 
@@ -354,6 +372,9 @@ def smoke(binary: Path, seconds: int, artifact: Path) -> bool:
             "stdout": subprocess.PIPE,
             "stderr": subprocess.PIPE,
             "text": True,
+            # 显式指定解码，不依赖系统 locale（Windows 上默认是 cp936/cp1252）
+            "encoding": "utf-8",
+            "errors": "replace",
         }
         if sys.platform == "win32":
             popen_kwargs["creationflags"] = subprocess.CREATE_NEW_PROCESS_GROUP
@@ -528,6 +549,7 @@ def parse_args(argv: list[str] | None = None) -> argparse.Namespace:
 
 
 def main(argv: list[str] | None = None) -> int:
+    force_utf8_stdio()
     args = parse_args(argv)
     artifact, elapsed = build(args)
 
