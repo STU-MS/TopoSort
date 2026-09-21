@@ -559,8 +559,17 @@ def main(argv: list[str] | None = None) -> int:
     artifact, elapsed = build(args)
 
     binary = launchable_binary(artifact)
-    size = sum(f.stat().st_size for f in artifact.rglob("*") if f.is_file()) \
-        if artifact.is_dir() else artifact.stat().st_size
+    if artifact.is_dir():
+        # 必须排除符号链接：macOS 的 .app 里有大量指向 Contents/Frameworks 的符号链接，
+        # 而 Path.is_file() 会跟随链接，导致同一实体被重复计入
+        # （实测把约 95MB 的包报成 271.7MB）。
+        size = sum(
+            f.stat().st_size
+            for f in artifact.rglob("*")
+            if f.is_file() and not f.is_symlink()
+        )
+    else:
+        size = artifact.stat().st_size
 
     print()
     print("=" * 72)
