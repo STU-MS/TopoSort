@@ -351,7 +351,12 @@ def smoke(binary: Path, seconds: int, artifact: Path) -> bool:
             if key in os.environ:
                 env[key] = os.environ[key]
 
-    with tempfile.TemporaryDirectory(prefix="toposort-smoke-") as tmp:
+    # ignore_cleanup_errors：Windows 上刚被终止的进程可能仍短暂持有 exe 文件句柄，
+    # 导致临时目录删除失败（实测 PermissionError: [WinError 5]）。
+    # 清理失败不该让冒烟判负，更不该把「构建成功」变成「步骤失败」。
+    with tempfile.TemporaryDirectory(
+        prefix="toposort-smoke-", ignore_cleanup_errors=True
+    ) as tmp:
         tmpdir = Path(tmp)
         # 把产物拷进空目录：证明运行不依赖仓库里的任何文件。
         # 注意 macOS 的 .app 是**目录**，必须整棵树拷过去——onedir 的可执行文件靠
@@ -385,9 +390,7 @@ def smoke(binary: Path, seconds: int, artifact: Path) -> bool:
         survived = False
         try:
             out, err = proc.communicate(timeout=seconds)
-            early_exit = True
         except subprocess.TimeoutExpired:
-            early_exit = False
             survived = True
             _terminate_tree(proc)
             try:
@@ -395,6 +398,8 @@ def smoke(binary: Path, seconds: int, artifact: Path) -> bool:
             except subprocess.TimeoutExpired:
                 proc.kill()
                 out, err = proc.communicate()
+            # 给被终止的进程树一点时间释放可执行文件句柄（Windows 上 exe 被进程占用）
+            time.sleep(1.0)
 
     print(f"空目录：{tmpdir}")
     if survived:
