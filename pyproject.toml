@@ -21,4 +21,7 @@ testpaths = ["app/tests"]
 pythonpath = ["."]
 
 [tool.pyinstaller]
-# 打包入口：app/main.py（骨架搭好后提供 tools/build.sh）
+# 打包统一入口：tools/build.py（三端一致；PyInstaller 参数、excludes、--strip 均封装在内）。
+# 用法：uv run python tools/build.py --smoke
+# 决策留档：evidence/decisions/2026-09-21-打包发布方案.md
+entry = "app/main.py"

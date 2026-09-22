@@ -1,0 +1,125 @@
+name: Release
+
+# T7（Issue #8）发布流水线：三平台各用 tools/build.py 构建 + 空目录启动冒烟，
+# 打 tag 时把三份产物汇总发布到 GitHub Release。
+#
+# 为什么单独一个 workflow、而不是塞进 ci.yml：
+#   ci.yml 管的是“代码对不对”（契约测试 / 机械红线），本文件管的是“产物能不能交付”。
+#   两者触发条件与权限需求不同（创建 Release 需要 contents: write，不该给每个 PR 开）。
+#
+# 为什么用 runner 自带的 gh CLI、而不是第三方 release Action：
+#   AGENTS.md 规定新增依赖须先讨论留档；gh 已预装在三类 runner 上，等于零新增依赖。
+#   用到的 actions/checkout、actions/upload-artifact、actions/download-artifact
+#   均为 GitHub 官方 Action，且前两个 ci.yml 已在用。
+#
+# 为什么 Windows 的产物不在这里“下载后附 SHA256”，而是自己构建：
+#   单文件产物无法跨平台交叉打包，三端必须各自在本平台构建。
+#   本 workflow 的 ubuntu/macos/windows 三个矩阵项就是三份产物的唯一来源。
+
+on:
+  push:
+    tags: ['v*']
+  # 手动触发：在打 tag 之前先用它验证三平台能不能构建成功（此时不建 Release）
+  workflow_dispatch:
+
+permissions:
+  contents: write
+
+jobs:
+  build:
+    name: "构建 ${{ matrix.asset_name }}"
+    strategy:
+      fail-fast: false
+      matrix:
+        include:
+          - os: ubuntu-latest
+            asset_name: TopoSort-linux-x64
+            # readme.txt 搭 Linux 这趟车一起进 assets/：发布 job 故意不做 checkout，
+            # 否则拿不到这个文件；这样 Release 才是自包含的（产物 + 说明 + 校验值）。
+            upload_paths: |
+              dist/TopoSort
+              dist/TopoSort.sha256
+              readme.txt
+          - os: windows-latest
+            asset_name: TopoSort-windows-x64
+            upload_paths: |
+              dist/TopoSort.exe
+              dist/TopoSort.exe.sha256
+          - os: macos-latest
+            asset_name: TopoSort-macos
+            upload_paths: |
+              dist/TopoSort-macos.zip
+              dist/TopoSort-macos.zip.sha256
+    runs-on: ${{ matrix.os }}
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: astral-sh/setup-uv@v5
+
+      # Linux 无显示器环境需要 Qt 基础系统库（offscreen 平台仍依赖 libEGL 等）
+      - name: 安装 Qt 系统库（仅 Linux）
+        if: runner.os == 'Linux'
+        run: |
+          sudo apt-get update -qq
+          sudo apt-get install -y -qq libegl1 libgl1 libxkbcommon0 libdbus-1-3
+
+      - name: 安装依赖
+        run: uv sync
+
+      # 发布前的硬门槛：三平台跑全套测试（测试文件自身会设 QT_QPA_PLATFORM=offscreen）
+      - name: 回归测试
+        run: uv run pytest -q
+
+      # 三端同一条命令。平台差异（--windowed / 产物名 / macOS 走 onedir 出 .app / ditto 打 zip）
+      # 全部封装在 tools/build.py 内部，外部调用方式完全一致。
+      - name: 打包 + 空目录启动冒烟
+        run: uv run python tools/build.py --smoke
+
+      # 产物/体积/SHA256/校验文件由 tools/build.py 自己打印，此处不再重复列目录
+      # （避免为三端写三套 shell 差异）
+
+      - uses: actions/upload-artifact@v4
+        with:
+          name: ${{ matrix.asset_name }}
+          path: ${{ matrix.upload_paths }}
+          # 产物缺失即失败：宁可红，也不要发出一个缺文件的 Release
+          if-no-files-found: error
+
+  release:
+    name: "发布到 GitHub Release"
+    needs: build
+    # 只在 tag 推送时发布；workflow_dispatch 手动跑时只到 build 为止（等于预演）
+    if: startsWith(github.ref, 'refs/tags/')
+    runs-on: ubuntu-latest
+    env:
+      # 本 job 刻悥不做 actions/checkout（不需要源码，只需产物），因此没有 .git 目录，
+      # gh 无法自行推断仓库——必须显式给 GH_REPO，否则报：
+      #   failed to run git: fatal: not a git repository (or any of the parent directories): .git
+      GH_REPO: ${{ github.repository }}
+      GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+    steps:
+      - uses: actions/download-artifact@v4
+        with:
+          path: assets
+          merge-multiple: true
+
+      - name: 产物清单
+        run: ls -lR assets
+
+      # 先自检：下载到的产物必须与随附的 .sha256 对得上，再谈发布
+      - name: 校验产物与校验和一致
+        run: |
+          set -euo pipefail
+          cd assets
+          sha256sum -c ./*.sha256
+
+      - name: 创建/更新 Release 并上传三份产物
+        run: |
+          set -euo pipefail
+          TAG="${GITHUB_REF_NAME}"
+          # 幂等：Release 已存在就复用，重跑同一个 tag 的工作流不会失败
+          gh release view "$TAG" >/dev/null 2>&1 || \
+            gh release create "$TAG" --title "TopoSort $TAG" --generate-notes
+          gh release upload "$TAG" assets/* --clobber
+          echo "=== Release 资产 ==="
+          gh release view "$TAG" --json assets -q '.assets[] | "\(.name)  \(.size) bytes"'

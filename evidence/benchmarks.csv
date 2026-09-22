@@ -1,3 +1,10 @@
 日期,用例名,节点数,边数,结果数,耗时ms,模式
 2026-09-18,006-30节点稀疏链,30,29,1,0.061,count
 2026-09-18,007-60节点稀疏链,60,59,1,0.083,count
+2026-09-21,TopoSort-linux-onefile-baseline,,,,29277,package;size_mb=68.9;size_b=72257448;optimize=off;strip=off
+2026-09-21,TopoSort-linux-onefile-excludes-only,,,,30609,package;size_mb=68.9;size_b=72258160;optimize=on;strip=off
+2026-09-21,TopoSort-linux-onefile,,,,29661,package;size_mb=68.1;size_b=71363616;optimize=on;strip=on
+2026-09-21,TopoSort-windows-x64-onefile-CI,,,,85000,package;size_mb=46.5;size_b=48752547;optimize=off;strip=off;builder=actions-windows-latest;run=35521203523
+2026-09-21,TopoSort-linux-x64-release-CI,,,,38800,package;size_mb=64.0;size_b=67121240;mode=onefile;strip=on;builder=actions-ubuntu-latest;run=35620768539
+2026-09-21,TopoSort-windows-x64-release-CI,,,,68200,package;size_mb=46.5;size_b=48753119;mode=onefile;strip=off;builder=actions-windows-latest;run=35620768539
+2026-09-21,TopoSort-macos-release-CI,,,,26500,package;size_mb=35.0;size_b=36649790;app_unpacked_b=101650598;mode=onedir;zip=on;strip=off;builder=actions-macos-latest;run=35620768539
