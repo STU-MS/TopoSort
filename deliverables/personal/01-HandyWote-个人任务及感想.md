@@ -1,0 +1,45 @@
+# HandyWote 个人任务及感想
+
+> 拓扑排序应用软件 · CST4823A 高级算法原理实践 · 汕头大学数计学院计算机系
+> 版本 1.0 · 2026-09-24 · 组长（T1/T6/T7）
+
+> ⚠️ 本文由组长依据 git 提交历史整理成稿，**请本人核对姓名、学号与措辞后定稿**（学号一栏尚待填写）。
+
+## 一、基本信息
+
+| 项目 | 内容 |
+|---|---|
+| 姓名 | HandyWote |
+| 学号 | 待补填 |
+| 组内角色 | 组长 |
+| 负责范围 | T1 基建与契约、T6 集成联调、T7 打包发布；01-可行性研究报告、提交材料组装 |
+| Git 身份 | `HandyWote <handy@handywote.top>` |
+
+## 二、本人承担的任务
+
+1. **T1 基建与契约（issue #2）**：搭建 `app/{models,events,scene,ui}/` 包骨架，预埋契约测试；定义事件类型与字段、`parse()` 错误类型、输入/期望文件格式等接口契约；建立 uv 工程与三平台 CI。
+2. **工程规范与留档体系**：撰写 `AGENTS.md`、`CONTRIBUTING.md`、决策留档目录与会议记录模板，落实「决策 → Issue → evidence/decisions」的可复现原则。
+3. **CI 三平台矩阵**：GitHub Actions 覆盖 ubuntu/macos/windows，拆成 L1 机械红线（必须绿）与 L2 模块红测试（`continue-on-error` 路标）两层判定。
+4. **T6 集成联调（issue #7）**：把 `input → parse → player → timeline → scene → ui` 接成完整产品，替换桩事件源，编写中期演示脚本 `tools/demo_midterm.py`。
+5. **T7 打包发布（issue #8）**：编写三端一致的 `tools/build.py` 入口与 `release.yml` 流水线，发布 Release v0.1.0，并处理 macOS onedir、Windows UTF-8、临时目录句柄锁等跨平台问题。
+6. **文档**：撰写 01-可行性研究报告，组装 00-项目报告，补写 04-详细设计「渲染场景」「集成与打包」两章。
+
+## 三、具体产出
+
+- 工程与 CI：`pyproject.toml`、`uv.lock`、`.github/workflows/ci.yml`、`release.yml`、`tools/check_docs.py`、`tools/build.py`、`tools/extract_doc.py`、`tools/demo_midterm.py`。
+- 契约与骨架：`app/__init__.py`、各子包 `__init__.py`、`app/tests/test_contracts.py`。
+- 留档体系：`AGENTS.md`、`evidence/decisions/2026-09-15-契约定案.md`、`2026-09-15-技术栈定案.md`、`2026-09-15-任务拆分总表.md`、`2026-09-20-CI-L2任务缺Qt系统库.md`、`2026-09-21-发布流水线（Release）.md` 等。
+- 发布：GitHub Release v0.1.0（Linux `TopoSort` / Windows `TopoSort.exe` / macOS `TopoSort-macos.zip`，各附 `.sha256`）。
+- 文档：`deliverables/01-可行性研究报告.md`、`deliverables/00-项目报告.md`。
+- 集成修复：`fix: 修复 python app/main.py 直启时找不到 app 包的问题`、`fix(ci): L2 三任务补装 Qt 系统库`。
+
+## 四、遇到的困难与解决过程
+
+1. **CI 在 Linux runner 上 pytest-qt 报 `INTERNALERROR`**：根因是缺 `libEGL` 等 Qt 系统库。定位后在各 job 安装系统库，并进一步拆出 L1/L2 两层判定，避免底层环境问题把模块红测试的判读搅混。留档见 `evidence/decisions/2026-09-20-CI-L2任务缺Qt系统库.md`。
+2. **macOS 不能 `--onefile --windowed`**：PyInstaller 6.22 已弃用该组合，`.app` 在 macOS 安全模型下不可能是单文件。为此给 `tools/build.py` 增加 `--mode`，macOS 默认 onedir，其余 onefile，并用 `ditto` 打 zip 保留符号链接。
+3. **Windows 控制台非 UTF-8 导致脚本打印中文即崩**：给输出显式改用 UTF-8；另修了 Windows 临时目录句柄锁导致的冒烟误判、release job 缺 `GH_REPO` 等问题，均以 CI run 号为证。
+4. **标准图拓扑序基准 6→7 的口径修正**：在集成中发现计数与教材示例不一致，推动 issue #13 定案并在全仓对齐（PR 模板、测试、文档）。
+
+## 五、个人感想
+
+作为组长，我最大的体会是「可复现」比「写得快」更重要：把每一个技术选型都落成 issue 与 `evidence/decisions/` 文档后，模块并行开发时的分歧显著减少，出问题也能直接追溯到当时的决策依据。三端打包这一环尤其说明问题——真实踩到的坑（macOS onedir、Windows 编码与句柄锁）没有一个是靠「想当然」能避开的，只有把环境差异写成 CI 里的机械判定，才谈得上「三端通用」。后续如果继续完善，我会优先补充 Windows/macOS 实机验证，并把打包体积与启动耗时的回归基线固化下来。
