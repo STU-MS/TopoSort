@@ -1,0 +1,54 @@
+# HanXuXie 个人任务及感想
+
+> 拓扑排序应用软件 · CST4823A 高级算法原理实践 · 汕头大学数计学院计算机系
+> 版本 1.0 · 2026-09-23 · scene 开发者（T4）
+
+## 一、基本信息
+
+| 项目 | 内容 |
+|---|---|
+| 姓名 | HanXuXie |
+| 学号 | 待本人补填 |
+| 组内角色 | scene 开发者，负责渲染场景 |
+| 对应模块 | `app/scene/` |
+| 主要 issue | #5 T4 渲染场景 |
+| Git 身份 | `HanXuXie <hanbingxiaoxing@foxmail.com>` |
+
+> 说明：本节由 T4 开发者本人在 PR #37 中撰写（原稿位于 `04-详细设计.md` §4.11）；
+> 因该 PR 与重构后的《详细设计》冲突，组长把个人章节原样转移到本文件，**姓名/学号请本人补齐**。
+
+## 二、本人承担的任务
+
+本人负责 T4 `scene` 渲染场景的设计、实现、测试和验收材料整理，具体工作如下：
+
+1. 实现 `GraphBoard` 图画布。根据外部传入的节点、边和 `layers` 构造稳定的分层拓扑图，统一处理节点状态、边状态和 `StepEvent` 到视觉状态的映射；同时提供平移、缩放和 PNG 导出能力。
+2. 实现 `CandidatePool` 候选池。候选节点以可替换的芯片形式展示，支持 ready 集合更新、消费移除和 PNG 导出，并保持与画布的独立组件边界。
+3. 实现 `Effects` 动画工厂。集中定义节点渐隐、候选脉冲和边淡化动画的时长，避免动画参数散落在渲染代码里。
+4. 编写 offscreen pytest-qt 测试，覆盖节点状态转换、`DeadEnd`/`Fork`/`Complete` 无副作用、边淡化、候选池集合语义、平移缩放、动画时长、公共 API 类型边界和两个 PNG 导出接口。
+5. 编写并维护 `tools/capture_t4_screenshots.py`，生成 ready、active、ghost/边淡化、stuck 以及分层布局、前沿推进、平移缩放、独立导出等截图，统一保存到 `evidence/screenshots/`，作为报告可复现证据。
+6. 补充 T4 决策留档和《详细设计》中的渲染章节，记录模块边界、事件映射、验收方式及与 T3/T5 的协作接口。
+
+## 三、具体产出
+
+- `app/scene/board.py`、`app/scene/effects.py`、`app/scene/pool.py`：`GraphBoard`、`Effects`、`CandidatePool` 三个单一职责组件。
+- `app/tests/test_scene.py`：offscreen 渲染行为测试。
+- `tools/capture_t4_screenshots.py`：T4 截图生成脚本。
+- `evidence/decisions/2026-09-19-T4-渲染场景设计.md`、`evidence/decisions/2026-09-19-T4-实施计划.md` 等决策留档。
+- `evidence/screenshots/` 中以 `t4-` 开头的截图，例如：
+
+  - `evidence/screenshots/t4-layer-layout-20260923-1.png`：标准图稳定分层布局；
+  - `evidence/screenshots/t4-zoom-pan-view-20260923-1.png`：普通视图与放大、平移后的对比；
+  - `evidence/screenshots/t4-frontier-after-a-20260923-1.png`、`evidence/screenshots/t4-frontier-after-b-20260923-1.png`：A、B 被消费后的候选池集合变化；
+  - `evidence/screenshots/t4-independent-exports-20260923-1.png`：画布与候选池两种导出结果相互独立。
+
+最终使用 `uv run pytest -q` 验证，测试结果为 **66 passed**；文档引用检查也已通过。
+
+## 四、遇到的困难与解决过程
+
+这部分工作的难点不在于把图形画出来，而在于让渲染层只消费稳定的事件和布局数据，并且在不同事件顺序下保持可预测的视觉状态。通过将画布、候选池和动画工厂拆开，我更清楚地理解了「算法产生事件、渲染层解释事件、界面层负责装配」的分层关系，也体会到明确的模块边界能显著降低联调时的相互影响。
+
+截图和测试过程中曾遇到状态不同步、动画抓帧时机不稳定以及不同环境字体导致截图差异等问题。解决这些问题时，我把截图脚本中的状态准备过程提取为可测试的辅助函数，等待动画达到中点后再截取 active 状态，并用稳定的 offscreen 测试和独立导出检查来验证结果。这个过程使我认识到，演示材料不是开发完成后的附属品，而是验证可复现性和视觉契约的一部分。
+
+## 五、个人感想
+
+目前 T4 已完成独立渲染组件和证据准备，但候选池到主窗口的事件扇出仍属于后续集成范围，由 T5/T6 接续处理。因此，T4 的完成结论仅针对 `scene` 模块本身，不将尚未完成的主窗口集成误写为个人成果。后续如果继续优化，我会优先补充高 DPI 和大图场景下的视觉回归基线，并在 T5 集成后增加一次从事件时间线到画布、候选池的端到端验收。
