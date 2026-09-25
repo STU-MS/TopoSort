@@ -84,7 +84,7 @@ uv 会按 pyproject.toml 的 requires-python 自行准备解释器。
     uv run python tools/build.py --distpath /tmp/out --workpath /tmp/work
         自定义产物/中间目录（默认 dist/ 与 build/）。
 
-★ 关键限制：产物**不能跨平台交叉打包**。
+关键限制：产物**不能跨平台交叉打包**。
     Windows 的 .exe 必须在 Windows 上构建，macOS 的 .app 必须在 macOS 上构建。
     本项目的三份产物由 GitHub Actions 的 ubuntu / macos / windows 三个 runner
     各自执行**同一条命令**产出（.github/workflows/release.yml），
@@ -107,7 +107,7 @@ uv 会按 pyproject.toml 的 requires-python 自行准备解释器。
   以上三份均由 GitHub Actions 运行 35620768539（tag v0.1.0）产出，
   每个产物都附带同名 .sha256 文件，可直接用系统校验命令复核（见第二节）。
 
-  ⚠ 重要：**不要拿本文件里写死的 SHA256 去校验你自己重新构建的产物。**
+  重要：**不要拿本文件里写死的 SHA256 去校验你自己重新构建的产物。**
      PyInstaller 的单文件产物**不是字节可复现的**：本机用完全相同参数连续构建三次，
      得到 71,363,616 / 71,363,600 / 71,363,768 三种不同字节数与三个不同哈希
      （PyInstaller 的 SOURCE_DATE_EPOCH 只影响 Windows 的 PE 时间戳，救不了这点）。
