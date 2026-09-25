@@ -36,21 +36,21 @@ def run_make_pdf() -> None:
 
 
 def git_tracked_files() -> list[Path]:
+    # 用 -z（NUL 分隔）避免 git 对非 ASCII 路径做八进制转义/加引号
     out = subprocess.run(
-        ["git", "-C", str(ROOT), "ls-files"],
-        capture_output=True, text=True, encoding="utf-8",
+        ["git", "-C", str(ROOT), "ls-files", "-z"],
+        capture_output=True,
     )
     if out.returncode != 0:
         sys.exit("❌ 无法执行 git ls-files。")
     files = []
-    for line in out.stdout.splitlines():
-        line = line.strip()
+    for line in out.stdout.decode("utf-8").split("\0"):
         if not line:
             continue
-        p = ROOT / line
         # 源程序快照排除已单独成目录的 PDF/docx（避免重复）
         if line.startswith("deliverables/pdf/") or line.startswith("deliverables/docx/"):
             continue
+        p = ROOT / line
         if p.exists():
             files.append(p)
     return files
@@ -73,6 +73,11 @@ def main() -> int:
     docxs = sorted(DOCX_DIR.glob("*.docx"))
     videos = find_videos()
     source = git_tracked_files()
+    # 防回归：非 ASCII 路径曾因 git 引号转义被静默漏掉，此处显式断言关键目录已纳入
+    rel = [p.relative_to(ROOT).as_posix() for p in source]
+    for need in ("deliverables/", "minutes/", "app/"):
+        if not any(r.startswith(need) for r in rel):
+            sys.exit(f"❌ 源程序快照缺少 {need}，打包中止（请检查 git_tracked_files）。")
     readme = ROOT / "readme.txt"
 
     # 缺口检查
