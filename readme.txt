@@ -2,6 +2,7 @@ TopoSort —— 拓扑排序动画演示程序
 交付说明 / 三端运行与构建指南
 ================================================================================
 版本：0.1.0            整理日期：2026-09-21
+组别：第一组            交付包：group01.zip
 仓库：https://github.com/STU-MS/TopoSort
 发布页：https://github.com/STU-MS/TopoSort/releases/tag/v0.1.0
 打包方式：PyInstaller 单文件（Linux/Windows）/ onedir + .app（macOS），
