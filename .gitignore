@@ -11,3 +11,9 @@ dist/
 
 # 系统杂物
 .DS_Store
+
+# 交付构建产物（由 tools/make_pdf.py / tools/package_deliverables.py 生成）
+deliverables/pdf/
+deliverables/docx/
+/group01.zip
+/deliverables/*.mp4
