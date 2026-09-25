@@ -133,6 +133,13 @@ def html_to_pdf(chrome: str, html_path: Path, pdf_path: Path) -> None:
         "--no-pdf-header-footer",
         "--allow-file-access-from-files",
         "--virtual-time-budget=8000",
+    ]
+    # GitHub Actions（以及其他 CI）默认设 CI=true。CI 的容器/runner 常以 root 运行，
+    # Chrome 的 setuid sandbox 不可用会直接拒绝启动（报 "No usable sandbox!"），
+    # 因此 CI 下追加 --no-sandbox。本地运行（无 CI 变量）保持默认沙箱，行为不变。
+    if os.environ.get("CI"):
+        cmd.append("--no-sandbox")
+    cmd += [
         f"--print-to-pdf={pdf_path}",
         html_path.resolve().as_uri(),
     ]

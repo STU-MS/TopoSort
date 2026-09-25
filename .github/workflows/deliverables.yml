@@ -1,0 +1,125 @@
+name: Deliverables
+
+# T16（Issue #31 / 方案见 evidence/decisions/2026-09-25-doc转PDF方案.md）：
+# 在 CI 上把交付文档转 PDF，组装 group01.zip，手动触发时留存 artifact、
+# 打 tag 时把 zip 发布到 GitHub Release。
+#
+# 为什么单独一个 workflow、而不是塞进 ci.yml / release.yml：
+#   ci.yml 管“代码对不对”（契约测试/机械红线），release.yml 管“三端二进制产物”。
+#   本文件管的是“文档交付包”，触发条件与权限需求都不同，且换行/字体依赖重、
+#   跑得慢，不该拖累每个 PR 的 CI。
+#
+# 为什么用 `python3` 直接跑、不 `uv sync`：
+#   tools/make_pdf.py 与 tools/package_deliverables.py 只用标准库，pandoc/Chrome
+#   是本机外部工具（非仓库依赖，见上述决策）。走 uv 只会白等 PySide6 安装。
+#
+# 为什么用 runner 自带的 gh CLI、而不是第三方 release Action：
+#   AGENTS.md 规定新增依赖须先讨论留档；gh 已预装、actions/checkout 与
+#   actions/upload-artifact 均为 GitHub 官方 Action，等于零新增仓库依赖。
+#
+# ⚠️ 演示视频不在仓库内（体积 >50M，已 gitignore），因此本 workflow 产出的
+#    group01.zip **不含演示视频**，仅用于文档 PDF/Word + 源码快照的自动校验与分发。
+#    最终带视频的提交包必须在本机运行 `python3 tools/package_deliverables.py`
+#    （届时 deliverables/*.mp4 就位）另行组装。
+
+on:
+  # 手动触发：在打 tag 之前先验证文档能否在干净 ubuntu runner 上转出 PDF（不建 Release）
+  workflow_dispatch:
+  push:
+    tags: ['v*']
+
+permissions:
+  contents: write
+
+jobs:
+  package:
+    name: "转 PDF + 组装 group01.zip"
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+
+      # ubuntu-latest 预装 Google Chrome（命令名 google-chrome，make_pdf.py 的
+      # CHROME_NAMES 已含它），无需额外安装浏览器。
+      #
+      # fonts-noto-cjk 必装：runner 默认没有中文字体，缺了它 PDF 中文会变成豆腐块
+      # （□□□），且不会报错——只会静默产出坏 PDF。make_pdf.py 的 CSS 字体栈里
+      # 已含 "Noto Sans CJK SC"，装包即可命中。
+      - name: 安装 pandoc 与中文字体
+        run: |
+          set -euo pipefail
+          sudo apt-get update
+          sudo apt-get install -y pandoc fonts-noto-cjk
+
+      - name: 环境自检（pandoc / Chrome / 版本）
+        run: |
+          set -euo pipefail
+          pandoc --version | head -n 1
+          google-chrome --version
+          fc-list :lang=zh | head -n 3
+
+      # CI=true 由 GitHub Actions 默认设置；make_pdf.py 检测到它会给 Chrome 追加
+      # --no-sandbox，否则 runner 上的 Chrome 会因 sandbox 不可用直接拒绝启动。
+      - name: 转 PDF / docx（tools/make_pdf.py）
+        run: python3 tools/make_pdf.py
+
+      # --rebuild 会强制重跑 make_pdf.py（此处刚跑过，等于二次确认）；保留它是为了
+      # 让打包脚本走完整路径，缺 PDF 时能自查缺口并写进 提交说明.txt。
+      - name: 组装交付包（tools/package_deliverables.py --rebuild）
+        run: python3 tools/package_deliverables.py --rebuild
+
+      - name: 生成校验和
+        run: |
+          set -euo pipefail
+          sha256sum group01.zip > group01.zip.sha256
+          cat group01.zip.sha256
+
+      - uses: actions/upload-artifact@v4
+        with:
+          name: group01-deliverables
+          path: |
+            group01.zip
+            group01.zip.sha256
+          # 产物缺失即失败：宁可红，也不要发出一个不完整的交付包
+          if-no-files-found: error
+          # 交付包偏大且下载不频繁，保留 14 天便于人工取件
+          retention-days: 14
+
+  release:
+    name: "发布到 GitHub Release"
+    needs: package
+    # 只在 tag 推送时发布；workflow_dispatch 手动跑时只到 package 为止（等于预演）
+    if: startsWith(github.ref, 'refs/tags/')
+    runs-on: ubuntu-latest
+    env:
+      # 本 job 刻意不做 actions/checkout（不需要源码，只需本 job 的 artifact），
+      # 因此没有 .git 目录，gh 无法自行推断仓库——必须显式给 GH_REPO，否则报：
+      #   failed to run git: fatal: not a git repository (...): .git
+      GH_REPO: ${{ github.repository }}
+      GH_TOKEN: ${{ github.token }}
+    steps:
+      - uses: actions/download-artifact@v4
+        with:
+          name: group01-deliverables
+          path: assets
+
+      - name: 产物清单
+        run: ls -lR assets
+
+      # 先自检：下载到的交付包必须与随附的 .sha256 对得上，再谈发布
+      - name: 校验产物与校验和一致
+        run: |
+          set -euo pipefail
+          cd assets
+          sha256sum -c ./*.sha256
+
+      - name: 创建/更新 Release 并上传交付包
+        run: |
+          set -euo pipefail
+          TAG="${GITHUB_REF_NAME}"
+          # 幂等：Release 已存在就复用（release.yml 可能已建过），重跑同一 tag 不失败
+          gh release view "$TAG" >/dev/null 2>&1 || \
+            gh release create "$TAG" --title "TopoSort $TAG" --generate-notes
+          # 该 Release 可能同时含 release.yml 上传的三端二进制，--clobber 保证重跑幂等
+          gh release upload "$TAG" assets/group01.zip assets/group01.zip.sha256 --clobber
+          echo "=== Release 资产 ==="
+          gh release view "$TAG" --json assets -q '.assets[] | "\(.name)  \(.size) bytes"'
