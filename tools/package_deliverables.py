@@ -1,19 +1,27 @@
 #!/usr/bin/env python3
 """组装最终交付包 group01.zip（提交 mySTU）。
 
-按老师任务书「提交材料」组装，内含 8 类材料。源程序快照用 `git ls-files` 获取，
-天然排除 .venv/dist/build/.git/__pycache__ 与本脚本产物（均已在 .gitignore）。
+材料来源统一为 `submission/`（由 tools/build_submission.py 刷新）。
+`deliverables/` 只作为素材/过程文档，不再直接进包（避免重复）。
+
+包内结构：
+    group01/
+    ├── 00-项目报告.pdf / .docx
+    ├── readme.txt
+    ├── 会议记录/
+    ├── 个人任务及感想/
+    ├── 演示视频/
+    ├── 源程序/           git 跟踪文件快照（排除 submission/ 与 deliverables 的 pdf/docx）
+    └── 提交说明.txt
 
 用法：
-    uv run python tools/package_deliverables.py            # 先确保 PDF 存在再打包
-    uv run python tools/package_deliverables.py --rebuild  # 强制重跑 make_pdf.py
+    uv run python tools/build_submission.py    # 先刷新 submission/
+    uv run python tools/package_deliverables.py
 
-产物：仓库根目录 group01.zip
+产物：仓库根目录 group01.zip（已 gitignore）
 """
 from __future__ import annotations
 
-import argparse
-import shutil
 import subprocess
 import sys
 import zipfile
@@ -21,18 +29,15 @@ from datetime import date
 from pathlib import Path
 
 ROOT = Path(__file__).resolve().parent.parent
-PDF_DIR = ROOT / "deliverables" / "pdf"
-DOCX_DIR = ROOT / "deliverables" / "docx"
+SUBMISSION = ROOT / "submission"
 ZIP_PATH = ROOT / "group01.zip"
 
-EXPECTED_PDF = 17  # 00-06(7) + personal(5) + minutes(5)
-
-
-def run_make_pdf() -> None:
-    print("→ 生成 PDF / docx（tools/make_pdf.py）…")
-    res = subprocess.run([sys.executable, str(ROOT / "tools" / "make_pdf.py")])
-    if res.returncode != 0:
-        sys.exit("❌ make_pdf.py 失败，终止打包。")
+# 源程序快照里排除的目录前缀（避免与单独的 PDF/docx 目录重复）
+SOURCE_EXCLUDE_PREFIXES = (
+    "submission/",  # 提交材料目录，单独打包
+    "deliverables/pdf/",  # 与 会议记录/ 个人任务及感想 重复
+    "deliverables/docx/",
+)
 
 
 def git_tracked_files() -> list[Path]:
@@ -47,8 +52,7 @@ def git_tracked_files() -> list[Path]:
     for line in out.stdout.decode("utf-8").split("\0"):
         if not line:
             continue
-        # 源程序快照排除已单独成目录的 PDF/docx（避免重复）
-        if line.startswith("deliverables/pdf/") or line.startswith("deliverables/docx/"):
+        if any(line.startswith(pref) for pref in SOURCE_EXCLUDE_PREFIXES):
             continue
         p = ROOT / line
         if p.exists():
@@ -56,38 +60,51 @@ def git_tracked_files() -> list[Path]:
     return files
 
 
+def dir_files(d: Path) -> list[Path]:
+    if not d.is_dir():
+        return []
+    return sorted(p for p in d.iterdir() if p.is_file())
+
+
 def find_videos() -> list[Path]:
-    return sorted(p for p in (ROOT / "deliverables").glob("*.mp4"))
+    """演示视频：优先 submission/演示视频/，兼容旧的 deliverables/*.mp4。"""
+    vids = [p for p in dir_files(SUBMISSION / "演示视频") if p.suffix.lower() == ".mp4"]
+    vids += sorted((ROOT / "deliverables").glob("*.mp4"))
+    return vids
 
 
 def main() -> int:
-    ap = argparse.ArgumentParser()
-    ap.add_argument("--rebuild", action="store_true", help="强制重跑 make_pdf.py")
-    args = ap.parse_args()
+    if not SUBMISSION.is_dir():
+        sys.exit("❌ submission/ 不存在，请先运行 uv run python tools/build_submission.py")
 
-    pdfs = sorted(PDF_DIR.glob("*.pdf"))
-    if args.rebuild or len(pdfs) < EXPECTED_PDF:
-        run_make_pdf()
-        pdfs = sorted(PDF_DIR.glob("*.pdf"))
-
-    docxs = sorted(DOCX_DIR.glob("*.docx"))
+    readme = SUBMISSION / "readme.txt"
+    report_pdf = SUBMISSION / "00-项目报告.pdf"
+    report_docx = SUBMISSION / "00-项目报告.docx"
+    minutes = dir_files(SUBMISSION / "会议记录")
+    personal = dir_files(SUBMISSION / "个人任务及感想")
     videos = find_videos()
     source = git_tracked_files()
+
     # 防回归：非 ASCII 路径曾因 git 引号转义被静默漏掉，此处显式断言关键目录已纳入
     rel = [p.relative_to(ROOT).as_posix() for p in source]
     for need in ("deliverables/", "minutes/", "app/"):
         if not any(r.startswith(need) for r in rel):
             sys.exit(f"❌ 源程序快照缺少 {need}，打包中止（请检查 git_tracked_files）。")
-    readme = ROOT / "readme.txt"
 
-    # 缺口检查
+    # 存在性校验：缺项写进「未闭环项」，不崩溃
     missing: list[str] = []
-    if len(pdfs) < EXPECTED_PDF:
-        missing.append(f"PDF 数量不足：{len(pdfs)}/{EXPECTED_PDF}")
-    if not videos:
-        missing.append("演示视频（deliverables/*.mp4）尚未就位（T17 / issue #32）")
+    if not report_pdf.exists():
+        missing.append("00-项目报告.pdf（组长从 readme 模板导出后放入 submission/）")
+    if not report_docx.exists():
+        missing.append("00-项目报告.docx（T4 报告构建产出后放入 submission/）")
     if not readme.exists():
-        missing.append("readme.txt 缺失")
+        missing.append("readme.txt（运行 tools/build_submission.py 从根目录同步）")
+    if not minutes:
+        missing.append("会议记录/ 为空（应为 5 组 docx+pdf）")
+    if not personal:
+        missing.append("个人任务及感想/ 为空（应为 5 组 docx+pdf）")
+    if not videos:
+        missing.append("演示视频（submission/演示视频/*.mp4 或 deliverables/*.mp4）尚未就位")
 
     # 组装清单文本
     stamp = date.today().isoformat()
@@ -96,16 +113,16 @@ def main() -> int:
         f"打包日期：{stamp}",
         "",
         "目录结构：",
-        "  00-项目报告.pdf              项目报告（含运行界面截图）",
+        "  00-项目报告.pdf              项目报告 PDF（老师模板导出）",
+        "  00-项目报告.docx             项目报告 docx（可直接批注）",
         "  readme.txt                   运行环境/配置/如何运行",
-        "  文档PDF/                     所有交付文档的 PDF（00-06 + 个人感想 + 会议记录）",
-        "  文档Word/                    对应 docx（Word 格式，便于批注）",
-        "  会议记录PDF/                 会议记录 PDF（另在 文档PDF/ 也有）",
-        "  源程序/                      整个项目源码快照（git 跟踪文件，含 md 源、evidence、readme.txt）",
+        "  会议记录/                    5 次会议记录（docx + pdf）",
+        "  个人任务及感想/               5 人个人任务及感想（docx + pdf）",
         "  演示视频/                    演示视频（≤50M）",
+        "  源程序/                      整个项目源码快照（git 跟踪文件，含 app/、tools/、evidence/、readme.txt）",
         "  提交说明.txt                 本文件",
         "",
-        f"PDF 份数：{len(pdfs)}  |  docx 份数：{len(docxs)}  |  视频：{len(videos)} 个",
+        f"会议记录：{len(minutes)} 份  |  个人任务及感想：{len(personal)} 份  |  视频：{len(videos)} 个",
     ]
     if missing:
         manifest += ["", "⚠️ 未闭环项（打包时缺失，请补齐后重跑）："] + [f"  - {m}" for m in missing]
@@ -114,25 +131,21 @@ def main() -> int:
     if ZIP_PATH.exists():
         ZIP_PATH.unlink()
     with zipfile.ZipFile(ZIP_PATH, "w", zipfile.ZIP_DEFLATED) as z:
-        # 顶层项目报告与 readme
-        report_pdf = PDF_DIR / "00-项目报告.pdf"
         if report_pdf.exists():
             z.write(report_pdf, "group01/00-项目报告.pdf")
+        if report_docx.exists():
+            z.write(report_docx, "group01/00-项目报告.docx")
         if readme.exists():
             z.write(readme, "group01/readme.txt")
-        # 文档 PDF / docx
-        for p in pdfs:
-            z.write(p, f"group01/文档PDF/{p.name}")
-            if p.name.startswith("2026-"):
-                z.write(p, f"group01/会议记录PDF/{p.name}")
-        for p in docxs:
-            z.write(p, f"group01/文档Word/{p.name}")
+        for p in minutes:
+            z.write(p, f"group01/会议记录/{p.name}")
+        for p in personal:
+            z.write(p, f"group01/个人任务及感想/{p.name}")
+        for p in videos:
+            z.write(p, f"group01/演示视频/{p.name}")
         # 源程序快照
         for p in source:
             z.write(p, f"group01/源程序/{p.relative_to(ROOT).as_posix()}")
-        # 演示视频
-        for p in videos:
-            z.write(p, f"group01/演示视频/{p.name}")
         # 提交说明
         z.writestr("group01/提交说明.txt", "\n".join(manifest) + "\n")
 
@@ -140,7 +153,10 @@ def main() -> int:
     print("\n".join(manifest))
     print("\n" + "=" * 48)
     print(f"✅ 已生成 {ZIP_PATH.name}  体积 {size:,} B ({size / 1024 / 1024:.1f} MB)")
-    print(f"   源程序文件 {len(source)} 个 · PDF {len(pdfs)} 份 · docx {len(docxs)} 份 · 视频 {len(videos)} 个")
+    print(
+        f"   源程序文件 {len(source)} 个 · 会议记录 {len(minutes)} 份 · "
+        f"个人任务及感想 {len(personal)} 份 · 视频 {len(videos)} 个"
+    )
     if missing:
         print("⚠️ 仍有未闭环项：\n   - " + "\n   - ".join(missing))
     return 0

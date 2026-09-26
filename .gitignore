@@ -12,8 +12,15 @@ dist/
 # 系统杂物
 .DS_Store
 
+# 图表渲染缓存（tools/gen_diagrams.py 自动下载，不进仓库）
+.cache/
+
 # 交付构建产物（由 tools/make_pdf.py / tools/package_deliverables.py 生成）
 deliverables/pdf/
 deliverables/docx/
 /group01.zip
 /deliverables/*.mp4
+
+# 演示视频体积大（>50M），不入 git，仅保留占位文件
+submission/演示视频/*
+!submission/演示视频/.gitkeep

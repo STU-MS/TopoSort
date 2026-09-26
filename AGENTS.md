@@ -35,7 +35,14 @@ TopoSort/
 │   │   └── pool.py      #   候选池芯片 + PNG 导出
 │   └── ui/              # 界面层：组装与信号槽
 │       ├── main_window.py / input_panel.py / control_bar.py / lanes.py / results.py
-├── deliverables/        # 最终交付文档（写报告直接在这里写，编号固定）
+├── report/             # 报告构建输入：老师模板 docx + mermaid 图源（产物进 submission/）
+├── submission/         # ★ 唯一正式提交材料目录（由 tools/build_submission.py 刷新）
+│   ├── readme.txt
+│   ├── 00-项目报告.docx / 00-项目报告.pdf   # 报告为套老师模板的 docx 及其 PDF
+│   ├── 会议记录/       # 5 次组会 docx + pdf
+│   ├── 个人任务及感想/  # 5 人 docx + pdf
+│   └── 演示视频/       # 视频占位（大文件不入 git）
+├── deliverables/        # 过程文档/素材（分章 md 与 docx/pdf 中间产物），非提交目录
 │   ├── 01-可行性研究报告.md
 │   ├── 02-需求分析.md
 │   ├── 03-概要设计.md
@@ -49,7 +56,7 @@ TopoSort/
 │   ├── screenshots/     # 截图：功能名-日期-N.png，每完成一个可见效果立刻截
 │   ├── benchmarks.csv   # 性能数据，一行一条：日期,用例名,节点数,边数,结果数,耗时ms,模式
 │   └── test-data/       # 测试用例：编号-描述.in / .expected / .events.json（事件流 golden，tools/gen_golden_events.py 生成）
-├── tools/               # 辅助脚本（.doc 文本提取、md→PDF 等）
+├── tools/               # 辅助脚本（.doc 文本提取、md→PDF、提交目录/打包等）
 └── docs/                # 老师下发的原始作业文件（只读，勿改）
 ```
 
