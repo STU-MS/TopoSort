@@ -18,7 +18,7 @@
      的 width/height，据此算出**恰好包住内容**的窗口尺寸（含 padding），
      这样既不会截断文字，也不会留大片空白导致 PNG 过小。
   3. Chrome --headless=new --screenshot=... 按该尺寸截图。
-  4. 校验 PNG > 20KB（tools/check_docs.py 的门槛），否则报错退出。
+  4. 扫像素算墨迹占画布宽的比例，低于 INK_MIN_WIDTH_RATIO 直接报错（见该常量的注释）。
 
 幂等：mermaid 渲染 + Chrome 截图都是确定性的，重跑覆盖同名文件，字节数一致。
 退出码非 0 = 至少一张图渲染失败。
@@ -35,6 +35,9 @@ import tempfile
 import threading
 import time
 from pathlib import Path
+
+sys.path.insert(0, str(Path(__file__).resolve().parent))  # tools/ 同级模块
+import png_ink  # noqa: E402  纯标准库的 PNG 墨迹扫描，用来守门「图会不会小到看不清」
 
 # ---------------------------------------------------------------------------
 # mermaid 版本与期望 SHA256（可复现性凭据；换版本时必须同步改这里）
@@ -62,12 +65,24 @@ CHROME_CANDIDATES = [
 ]
 MIN_BYTES = 8 * 1024   # 结构图是线稿（大片白底、熵低），20KB 门槛会把正常图误杀
                        # （实测 4 个框的四层架构图只有 2.4KB）。这里用 8KB 做“非空图”下限，
-                       # 真正的可读性靠逐张看图 + H/W 上限把关。
+                       # 真正的可读性由墨迹覆盖率 + H/W 上限机械把关。
 PADDING = 24          # SVG 四周留白，避免文字贴边被裁
 MIN_CANVAS_CSS = 260  # 画布最小 CSS 高/宽：过扁的图（如 4 个框的一行流程图）
                       # 实测量出的高度偏小，截图会把节点压成细条（字全丢），故给下限
 MAX_SIDE = 6000       # Chrome 窗口上限保护
 VIRTUAL_TIME_BUDGET = 8000
+
+# 墨迹宽度占画布宽度的下限。为什么需要：mermaid 的 stateDiagram 只给 svg
+# width="100%"、不给 height，按 CSS 规范「缺省尺寸的替换元素取默认对象尺寸 300×150」，
+# Chrome 会把 svg 渲染成 300 CSS px 宽（内容缩到 viewBox 的 29%），而截图窗口是按
+# viewBox 开的 → 画布尺寸对、内容只占左上角 27%，插到 16cm 宽时图内字号仅约 4.6pt。
+# 这种「画布对、内容小」的缺陷只看尺寸查不出来，必须扫像素；实测正常流程图 93~94%。
+INK_MIN_WIDTH_RATIO = 0.70
+# 报告里结构图统一按 16cm 宽摆放（report/content.py 的 FIGURES），用折算纸上字号做参考
+REF_DIAGRAM_WIDTH_CM = 16.0
+PT_PER_CM = 28.3465
+# 折算出纸上字号低于它就提醒（不报错：真正常见的密集大图也会落在 7pt 附近）
+SOFT_PT_WARN = 7.0
 
 # 图源文件名 → (输出 PNG 名, 字号 px, H/W 上限)
 # 字号用于在保持横向的前提下把过扁/过小的图“放大”一点（mermaid 按 font-size 估算节点宽度），
@@ -144,6 +159,33 @@ def build_html(source: str, mermaid_js: Path, font_px: int = 16) -> str:
   mermaid.initialize({{ startOnLoad: true, theme: 'neutral',
                         flowchart: {{ useMaxWidth: false, htmlLabels: true }},
                         themeVariables: {{ fontSize: '{font_px}px' }} }});
+</script>
+<script>
+  // mermaid 部分图类型（stateDiagram）生成的 <svg> 只给 width="100%"、不给 height，
+  // 于是 Chrome 按 CSS 的「默认对象尺寸 300×150」渲染，内容被缩到 viewBox 的 ~29%，
+  // 而截图窗口是按 viewBox 开的 → 画布尺寸对、内容只占一角。渲染完成后把 viewBox 尺寸
+  // 回填成显式 width/height，让 svg 盒子 = 内容尺寸（1:1）；已有显式尺寸的图不受影响。
+  (function () {{
+    function normalizeSvg() {{
+      var svg = document.querySelector('svg');
+      if (!svg) return false;
+      var vb = svg.viewBox && svg.viewBox.baseVal;
+      if (!vb || !vb.width || !vb.height) return false;
+      var w = svg.getAttribute('width') || '';
+      var h = svg.getAttribute('height') || '';
+      if (!/^[0-9.]+$/.test(w) || !/^[0-9.]+$/.test(h)) {{
+        svg.setAttribute('width', vb.width);
+        svg.setAttribute('height', vb.height);
+        svg.style.maxWidth = vb.width + 'px';
+      }}
+      var r = svg.getBoundingClientRect();
+      document.documentElement.setAttribute('data-svg-box', JSON.stringify(
+        [r.width.toFixed(1), r.height.toFixed(1),
+         vb.width.toFixed(1), vb.height.toFixed(1)]));
+      return true;
+    }}
+    var tick = setInterval(function () {{ if (normalizeSvg()) clearInterval(tick); }}, 20);
+  }})();
 </script>
 </body>
 </html>
@@ -286,7 +328,25 @@ def render_one(chrome: str, mmd: Path, stem: str, mermaid_js: Path,
             f"纵横比不达标：H/W={hw:.3f} > {max_hw}（{w}x{h}），"
             f"14cm 宽时高 {14 * hw:.1f}cm；请把图源改成更横向的布局"
         )
-    log(f"✅ {target.relative_to(ROOT)}  {w}x{h}px  H/W={hw:.3f}  {size}B")
+
+    cover_w, cover_h, ink = png_ink.ink_coverage(target)
+    ink_w, ink_h = ink[2] - ink[0] + 1, ink[3] - ink[1] + 1
+    pt_on_page = font_px * 2 * (REF_DIAGRAM_WIDTH_CM * PT_PER_CM) / (w * 2)
+    line = (f"✅ {target.relative_to(ROOT)}  {w}x{h}px  H/W={hw:.3f}  {size}B"
+            f"  墨迹占宽 {cover_w:.0%} 高 {cover_h:.0%}"
+            f"  摆 {REF_DIAGRAM_WIDTH_CM:g}cm 宽时图上字号≈{pt_on_page:.1f}pt")
+    if cover_w < INK_MIN_WIDTH_RATIO:
+        raise RuntimeError(
+            f"墨迹只占画布宽 {cover_w:.0%}（下限 {INK_MIN_WIDTH_RATIO:.0%}）：{target}\n"
+            f"   画布 {w}x{h} CSS，墨迹 {ink_w}x{ink_h}px（留白 左{ink[0]} 右{w - 1 - ink[2]}）\n"
+            "   画布对但内容缩在一角，插进文档后图内文字会被整体缩小到看不清。\n"
+            "   多半是 mermaid 生成的 svg 没有显式 width/height，被按「默认对象尺寸"
+            "300×150」缩小渲染了；先确认 build_html 里的 svg 归一化脚本是否生效。"
+        )
+    log(line)
+    if pt_on_page < SOFT_PT_WARN:
+        log(f"   ⚠️  图上字号 ≈{pt_on_page:.1f}pt 偏小（<{SOFT_PT_WARN:g}pt），"
+            "建议把图源改稀一点或缩小摆放宽度")
     return target
 
 

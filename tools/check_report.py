@@ -9,7 +9,10 @@
   4. 无残留：`http` 链接、`完整内容见`、老师模板示例标题「校园行走最优路径查询系统」；
   5. 目录是真的 `TOC` 域；settings 里置了 `updateFields`（Word 打开时重算页码）；
   6. 图片数量与图题数量一致；
-  7. `submission/00-项目报告.pdf` 缺失时给**告警**（由组长在 Word 导出），不算失败。
+  7. 每张图的墨迹宽度 ≥ 画布宽度 70%——画布对但内容缩在一角的图，插进文档后
+     图内文字会被整体缩到看不清（实测踩过：mermaid stateDiagram 被按 CSS
+     「默认对象尺寸 300×150」渲染，内容只占画布 27%）；
+  8. `submission/00-项目报告.pdf` 缺失时给**告警**（由组长在 Word 导出），不算失败。
 
 用法：
     uv run python tools/check_report.py            # 检查默认成品
@@ -24,7 +27,15 @@ import re
 import shutil
 import subprocess
 import sys
+import zipfile
 from pathlib import Path
+
+sys.path.insert(0, str(Path(__file__).resolve().parent))  # tools/ 同级模块
+import png_ink  # noqa: E402
+
+# 墨迹宽度占画布宽度的下限，与 tools/gen_diagrams.py 的 INK_MIN_WIDTH_RATIO 同义：
+# 低于它的图在纸面上会被整体缩小到看不清，属于交付缺陷而非风格问题。
+INK_MIN_WIDTH_RATIO = 0.70
 
 ROOT = Path(__file__).resolve().parent.parent
 DEFAULT_DOCX = ROOT / "submission" / "00-项目报告.docx"
@@ -166,11 +177,11 @@ def main() -> int:
         ok("无长 URL、无「完整内容见」、无模板示例标题残留")
 
     # ---- 5. 目录域与 updateFields -------------------------------------------
-    import zipfile
-
     with zipfile.ZipFile(docx) as z:
         document = z.read("word/document.xml").decode("utf-8")
         settings = z.read("word/settings.xml").decode("utf-8")
+        media = sorted(n for n in z.namelist() if n.startswith("word/media/"))
+        media_blobs = [(n, z.read(n)) for n in media]
     if 'TOC \\o' not in document:
         fail("目录不是真的 TOC 域（未找到 TOC \\o 指令）")
     else:
@@ -181,7 +192,28 @@ def main() -> int:
     else:
         ok("已置 updateFields：Word 打开时自动重算目录页码与页码域")
 
-    # ---- 6. 报告 PDF ---------------------------------------------------------
+    # ---- 7. 图能不能看清（墨迹占画布宽度的比例）------------------------------
+    unreadable: list[str] = []
+    for name, blob in media_blobs:
+        if not blob[:8] == b"\x89PNG\r\n\x1a\n":
+            continue
+        cover_w, cover_h, ink = png_ink.ink_coverage(blob)
+        w, h, _nch, _px = png_ink.decode(blob)
+        flag = ""
+        if cover_w < INK_MIN_WIDTH_RATIO:
+            unreadable.append(
+                f"{name}（{w}x{h}，墨迹只占宽 {cover_w:.0%}，"
+                f"留白 左{ink[0]} 右{w - 1 - ink[2]}）"
+            )
+            flag = "  ← 内容缩在一角，纸面上会小到看不清"
+        print(f"   {name}  {w}x{h}  墨迹占宽 {cover_w:.0%} 高 {cover_h:.0%}{flag}")
+    if unreadable:
+        fail(f"{len(unreadable)} 张图在纸面上会被缩到看不清：{'；'.join(unreadable)}\n"
+             "   修法：重跑 uv run python tools/gen_diagrams.py，或把该图源改稀/改横向")
+    else:
+        ok(f"{len(media_blobs)} 张图的墨迹宽度都 ≥ {INK_MIN_WIDTH_RATIO:.0%}，纸面上不会糊成一片")
+
+    # ---- 8. 报告 PDF ---------------------------------------------------------
     pdf = args.pdf if args.pdf.is_absolute() else ROOT / args.pdf
     if pdf.exists():
         ok(f"报告 PDF 就位：{pdf.relative_to(ROOT)}（{pdf.stat().st_size:,} B）")
