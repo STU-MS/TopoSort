@@ -94,13 +94,26 @@ def refresh_submission() -> None:
         sys.exit("❌ build_submission.py 失败，终止打包。")
 
 
+def find_report_pdf() -> Path | None:
+    """报告 PDF 允许改名（组长可能起「…-项目报告-Group01.pdf」这类更认得出的名字）。
+
+    优先标准名 00-项目报告.pdf，否则取 submission/ 下第一个含「项目报告」的 PDF。
+    """
+    canon = SUBMISSION / "00-项目报告.pdf"
+    if canon.exists():
+        return canon
+    for cand in sorted(SUBMISSION.glob("*项目报告*.pdf")):
+        return cand
+    return None
+
+
 def main() -> int:
     refresh_submission()
     if not SUBMISSION.is_dir():
         sys.exit("❌ submission/ 不存在，请先运行 uv run python tools/build_submission.py")
 
     readme = SUBMISSION / "readme.txt"
-    report_pdf = SUBMISSION / "00-项目报告.pdf"
+    report_pdf = find_report_pdf()
     report_docx = SUBMISSION / "00-项目报告.docx"
     minutes = dir_files(SUBMISSION / "会议记录")
     personal = dir_files(SUBMISSION / "个人任务及感想")
@@ -115,8 +128,8 @@ def main() -> int:
 
     # 存在性校验：缺项写进「未闭环项」，不崩溃
     missing: list[str] = []
-    if not report_pdf.exists():
-        missing.append("00-项目报告.pdf（组长从 readme 模板导出后放入 submission/）")
+    if report_pdf is None:
+        missing.append("项目报告 PDF（submission/00-项目报告.pdf 或任一含「项目报告」的 PDF）")
     if not report_docx.exists():
         missing.append("00-项目报告.docx（T4 报告构建产出后放入 submission/）")
     if not readme.exists():
@@ -153,7 +166,7 @@ def main() -> int:
     if ZIP_PATH.exists():
         ZIP_PATH.unlink()
     with zipfile.ZipFile(ZIP_PATH, "w", zipfile.ZIP_DEFLATED) as z:
-        if report_pdf.exists():
+        if report_pdf is not None:
             z.write(report_pdf, "group01/00-项目报告.pdf")
         if report_docx.exists():
             z.write(report_docx, "group01/00-项目报告.docx")

@@ -7,12 +7,14 @@
   2. 八章齐全、层级与老师模板一致（`标题 1` × 8、`标题 2` × 3），且章节顺序正确；
   3. 图题/表题编号按章连续、不重号、不跳号，且**正文里引用到了**（「图 X-Y」「表 X-Y」）；
   4. 无残留：`http` 链接、`完整内容见`、老师模板示例标题「校园行走最优路径查询系统」；
-  5. 目录是真的 `TOC` 域；settings 里置了 `updateFields`（Word 打开时重算页码）；
+  5. 目录是真的 `TOC` 域；缓存页码单调不减且不全相同（防「域没更新、11 条全 5」）；
+     settings 里置了 `updateFields`（Word 打开时重算页码）；
   6. 图片数量与图题数量一致；
   7. 每张图的墨迹宽度 ≥ 画布宽度 70%——画布对但内容缩在一角的图，插进文档后
      图内文字会被整体缩到看不清（实测踩过：mermaid stateDiagram 被按 CSS
      「默认对象尺寸 300×150」渲染，内容只占画布 27%）；
-  8. `submission/00-项目报告.pdf` 缺失时给**告警**（由组长在 Word 导出），不算失败。
+  8. `submission/00-项目报告.pdf` 缺失时给**告警**（由组长导出），不算失败。PDF 允许改名，
+     认「00-项目报告.pdf」或 submission/ 下任何含「项目报告」的 PDF。
 
 用法：
     uv run python tools/check_report.py            # 检查默认成品
@@ -43,6 +45,21 @@ INK_MIN_WIDTH_RATIO = 0.70
 ROOT = Path(__file__).resolve().parent.parent
 DEFAULT_DOCX = ROOT / "submission" / "00-项目报告.docx"
 DEFAULT_PDF = ROOT / "submission" / "00-项目报告.pdf"
+
+
+def resolve_report_pdf(explicit: Path | None = None) -> Path:
+    """报告 PDF 允许改名（组长起的「…-项目报告-Group01.pdf」也认）。
+
+    顺序：显式 --pdf > 00-项目报告.pdf > submission/ 下第一个含「项目报告」的 PDF；
+    都没找到时返回预期路径，由调用方给出「未就位」告警。
+    """
+    if explicit is not None and explicit.exists():
+        return explicit
+    if DEFAULT_PDF.exists():
+        return DEFAULT_PDF
+    for cand in sorted((ROOT / "submission").glob("*项目报告*.pdf")):
+        return cand
+    return explicit if explicit is not None else DEFAULT_PDF
 
 CHAPTERS = (
     "软硬件环境",
@@ -209,6 +226,23 @@ def main() -> int:
     else:
         ok("已置 updateFields：Word 打开时自动重算目录页码与页码域")
 
+    # 目录缓存页码：ONLYOFFICE 导出 PDF 会更新 PAGE/NUMPAGES 域，却**不更新 TOC 域**，
+    # 于是 PDF 目录里 11 条页码会全是模板残留值（实测全为 5）。这里机械拦一道。
+    pagenums = []
+    for m in re.finditer(r" PAGEREF (_Toc\w+)[^<]*</w:instrText></w:r>(.*?)"
+                         r'<w:fldChar w:fldCharType="end"', document, re.S):
+        nums = re.findall(r"<w:t[^>]*>(\d+)</w:t>", m.group(2))
+        if nums:
+            pagenums.append(int(nums[0]))
+    if pagenums:
+        if len(set(pagenums)) == 1:
+            fail(f"目录缓存页码全是 {pagenums[0]}（TOC 域从未更新）：导出 PDF 前必须在 Word 里"
+                 "更新域（目录上右键 → 更新域 → 更新整个目录），否则 PDF 目录页码全错")
+        elif pagenums != sorted(pagenums):
+            warn(f"目录缓存页码不是单调不减：{pagenums}")
+        else:
+            ok(f"目录缓存页码已就位且单调不减：{pagenums}")
+
     # ---- 7. 图能不能看清（墨迹占画布宽度的比例）------------------------------
     unreadable: list[str] = []
     n_checked = 0
@@ -233,11 +267,12 @@ def main() -> int:
         ok(f"{n_checked} 张 PNG 的墨迹宽度都 ≥ {INK_MIN_WIDTH_RATIO:.0%}，纸面上不会糊成一片")
 
     # ---- 8. 报告 PDF ---------------------------------------------------------
-    pdf = args.pdf if args.pdf.is_absolute() else ROOT / args.pdf
+    pdf_arg = None if args.pdf == DEFAULT_PDF else (args.pdf if args.pdf.is_absolute() else ROOT / args.pdf)
+    pdf = resolve_report_pdf(pdf_arg)
     if pdf.exists():
         ok(f"报告 PDF 就位：{pdf.relative_to(ROOT)}（{pdf.stat().st_size:,} B）")
     else:
-        warn(f"报告 PDF 未就位（{pdf.relative_to(ROOT)}）：需由组长在 Word 打开 docx 后另存为 PDF")
+        warn(f"报告 PDF 未就位（{pdf.relative_to(ROOT)}）：需由组长导出后放入 submission/")
 
     print("\n" + "=" * 60)
     if FAILURES:
