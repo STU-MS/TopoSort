@@ -62,10 +62,10 @@ jobs:
       - name: 转 PDF / docx（tools/make_pdf.py）
         run: python3 tools/make_pdf.py
 
-      # --rebuild 会强制重跑 make_pdf.py（此处刚跑过，等于二次确认）；保留它是为了
-      # 让打包脚本走完整路径，缺 PDF 时能自查缺口并写进 提交说明.txt。
-      - name: 组装交付包（tools/package_deliverables.py --rebuild）
-        run: python3 tools/package_deliverables.py --rebuild
+      # package_deliverables.py 会自动先跑 build_submission.py 刷新 submission/
+      # （会议记录/个人感想的 docx+pdf 从这里复制），因此本步骤之前必须先跑 make_pdf.py。
+      - name: 组装交付包（tools/package_deliverables.py）
+        run: python3 tools/package_deliverables.py
 
       - name: 生成校验和
         run: |
