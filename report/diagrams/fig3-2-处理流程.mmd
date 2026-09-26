@@ -1,0 +1,17 @@
+flowchart TB
+    subgraph MAIN["主链：输入 → 解析 → 图对象 → 两路消费"]
+        direction LR
+        IN["输入文本"] --> P["parse()"] --> G["Graph"]
+        G --> L["layers()"] --> B["分层布局"]
+        G --> T["TopoPlayer"] --> TL["Timeline"] --> R["scene 渲染"] --> O["结果导出"]
+    end
+    subgraph ERR["异常分支"]
+        direction LR
+        E1["ParseError<br/>报行号"]
+        E2["CycleFound<br/>报卡住节点"]
+    end
+    P -.-> E1
+    T -.-> E2
+
+    classDef err fill:#ffe6e6,stroke:#cc4444,color:#7a1f1f;
+    class E1,E2 err;

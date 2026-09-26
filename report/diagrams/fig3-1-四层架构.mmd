@@ -1,0 +1,7 @@
+flowchart LR
+    UI["ui/ 界面层<br/>窗口 · 泳道"]
+    SCENE["scene/ 渲染层<br/>画布 · 动画"]
+    EVENTS["events/ 事件层<br/>事件流 · 时间线"]
+    MODELS["models/ 逻辑层<br/>解析 · 图 · 自研算法"]
+
+    UI -->|依赖| SCENE -->|依赖| EVENTS -->|依赖| MODELS

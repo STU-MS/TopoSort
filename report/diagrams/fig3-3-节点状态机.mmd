@@ -1,0 +1,10 @@
+stateDiagram-v2
+    direction LR
+    [*] --> idle
+    idle --> ready : 入候选池
+    ready --> active : 本拍被选中
+    active --> ghost : 被消费
+    idle --> stuck : 图含环、无候选
+    ready --> stuck : 图含环、无候选
+    active --> stuck : 图含环、无候选
+    ghost --> [*]
