@@ -194,9 +194,11 @@ def main() -> int:
 
     # ---- 7. 图能不能看清（墨迹占画布宽度的比例）------------------------------
     unreadable: list[str] = []
+    n_checked = 0
     for name, blob in media_blobs:
         if not blob[:8] == b"\x89PNG\r\n\x1a\n":
             continue
+        n_checked += 1
         cover_w, cover_h, ink = png_ink.ink_coverage(blob)
         w, h, _nch, _px = png_ink.decode(blob)
         flag = ""
@@ -211,7 +213,7 @@ def main() -> int:
         fail(f"{len(unreadable)} 张图在纸面上会被缩到看不清：{'；'.join(unreadable)}\n"
              "   修法：重跑 uv run python tools/gen_diagrams.py，或把该图源改稀/改横向")
     else:
-        ok(f"{len(media_blobs)} 张图的墨迹宽度都 ≥ {INK_MIN_WIDTH_RATIO:.0%}，纸面上不会糊成一片")
+        ok(f"{n_checked} 张 PNG 的墨迹宽度都 ≥ {INK_MIN_WIDTH_RATIO:.0%}，纸面上不会糊成一片")
 
     # ---- 8. 报告 PDF ---------------------------------------------------------
     pdf = args.pdf if args.pdf.is_absolute() else ROOT / args.pdf
