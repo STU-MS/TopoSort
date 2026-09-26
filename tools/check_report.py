@@ -37,6 +37,9 @@ import png_ink  # noqa: E402
 # 低于它的图在纸面上会被整体缩小到看不清，属于交付缺陷而非风格问题。
 INK_MIN_WIDTH_RATIO = 0.70
 
+# 目录条目样式的名字：Word 存成 toc 1/toc 2（id=TOC1…），ONLYOFFICE 存成 目录 1/目录 2
+# （id 是数字，如 919）。两种都要认，见下方正则。
+
 ROOT = Path(__file__).resolve().parent.parent
 DEFAULT_DOCX = ROOT / "submission" / "00-项目报告.docx"
 DEFAULT_PDF = ROOT / "submission" / "00-项目报告.pdf"
@@ -180,13 +183,27 @@ def main() -> int:
     with zipfile.ZipFile(docx) as z:
         document = z.read("word/document.xml").decode("utf-8")
         settings = z.read("word/settings.xml").decode("utf-8")
+        styles = z.read("word/styles.xml").decode("utf-8")
         media = sorted(n for n in z.namelist() if n.startswith("word/media/"))
         media_blobs = [(n, z.read(n)) for n in media]
     if 'TOC \\o' not in document:
         fail("目录不是真的 TOC 域（未找到 TOC \\o 指令）")
     else:
-        entries = len(re.findall(r'w:val="TOC[1-4]"', document))
-        ok(f"目录是真 TOC 域，含 {entries} 个目录条目")
+        # 目录条目样式必须通过 styles.xml 把 styleId 映回名字再判：Word（toc 1…）与
+        # ONLYOFFICE（目录 1…）保存时用的 id 完全不同，直接数 "TOC1" 会误报 0 条。
+        style_name = dict(re.findall(r'w:styleId="([^"]+)"[^>]*>\s*<w:name w:val="([^"]*)"', styles))
+        toc_styles = {sid for sid, nm in style_name.items()
+                      if re.fullmatch(r"(toc|目录)\s*[1-9]", nm.strip().lower())}
+        entries = sum(
+            1 for p in re.findall(r"<w:p[ >].*?</w:p>", document, re.S)
+            if (m := re.search(r'w:pStyle w:val="([^"]+)"', p)) and m.group(1) in toc_styles
+            and "".join(re.findall(r"<w:t[^>]*>([^<]*)</w:t>", p)).strip()
+        )
+        if entries:
+            ok(f"目录是真 TOC 域，含 {entries} 个目录条目")
+        else:
+            warn("目录是 TOC 域但没有可识别的目录条目段落：靠 updateFields 让 Word 重建，"
+                 "导出 PDF 前请确认目录完整")
     if "updateFields" not in settings:
         warn("settings.xml 未置 updateFields：Word 打开时可能不重算目录页码（可在 Word 里 Ctrl+A → F9）")
     else:
