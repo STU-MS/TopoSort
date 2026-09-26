@@ -15,8 +15,8 @@
     └── 提交说明.txt
 
 用法：
-    uv run python tools/build_submission.py    # 先刷新 submission/
-    uv run python tools/package_deliverables.py
+    uv run python tools/package_deliverables.py              # 自动先刷新 submission/
+    uv run python tools/package_deliverables.py --no-refresh # 直接拿现状打包
 
 产物：仓库根目录 group01.zip（已 gitignore）
 """
@@ -73,7 +73,29 @@ def find_videos() -> list[Path]:
     return vids
 
 
+def refresh_submission() -> None:
+    """先跑 tools/build_submission.py 刷新 submission/ 里的派生材料。
+
+    为什么由本脚本自动调：CI 的步骤只有 make_pdf.py → package_deliverables.py，
+    没有单独跑 build_submission.py；在这里自动调可保证本机与 CI 行为一致
+    （否则 CI 里会议记录/个人感想会直接用仓库里已有副本，与本机刷新的结果不一致）。
+    加 --no-refresh 可跳过。
+    """
+    if "--no-refresh" in sys.argv[1:]:
+        print("→ 跳过 submission/ 刷新（--no-refresh）")
+        return
+    script = ROOT / "tools" / "build_submission.py"
+    if not script.exists():
+        print("⚠️  未找到 tools/build_submission.py，跳过 submission/ 刷新")
+        return
+    print("→ 刷新 submission/（tools/build_submission.py）…")
+    res = subprocess.run([sys.executable, str(script)])
+    if res.returncode != 0:
+        sys.exit("❌ build_submission.py 失败，终止打包。")
+
+
 def main() -> int:
+    refresh_submission()
     if not SUBMISSION.is_dir():
         sys.exit("❌ submission/ 不存在，请先运行 uv run python tools/build_submission.py")
 
