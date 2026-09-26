@@ -277,6 +277,15 @@ def fill_items(oc: Oc, anchor: str, items: list[dict], figures: dict[str, dict])
     return len(items)
 
 
+def format_member(value: str) -> str:
+    """姓名列单元格文本（原样返回）。
+
+    历史经过：曾想把「姓名（学号）」拆两行，但 officecli 的 `--prop text=` 不接受
+    `\\v`（报 XML-illegal control char U+000B），所以改走「加宽姓名列」的路。
+    """
+    return value
+
+
 def build(out: Path, refresh: bool, content_dir: Path) -> None:
     ensure_template()
     sys.path.insert(0, str(content_dir))
@@ -311,6 +320,11 @@ def build(out: Path, refresh: bool, content_dir: Path) -> None:
     for i, row in enumerate(rows, start=2):
         for c, value in enumerate(row, start=1):
             oc.set(f"/body/tbl[2]/tr[{i}]/tc[{c}]", text=value)
+    # 老师模板里「姓名」列只有 1250 twips（约 2.2cm），装不下「黄应辉（2024611031）」
+    # （会断成「20246110 / 31)」），故把三列重分为 2000/1700/5660（总和仍为正文宽 9360）。
+    for r in range(1, len(rows) + 2):
+        for c, width in ((1, 2000), (2, 1700), (3, 5660)):
+            oc.set(f"/body/tbl[2]/tr[{r}]/tc[{c}]", width=f"{width}dxa")
     for r in range(COVER_HEIGHT_ROW_COUNT, len(rows) + 1, -1):
         oc.remove(f"/body/tbl[2]/tr[{r}]")
 
