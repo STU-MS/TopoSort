@@ -4,15 +4,18 @@
 材料来源统一为 `submission/`（由 tools/build_submission.py 刷新）。
 `deliverables/` 只作为素材/过程文档，不再直接进包（避免重复）。
 
-包内结构：
+包内结构（组长定稿，见 evidence/decisions/2026-09-27-提交包内容定案.md）：
     group01/
-    ├── 00-项目报告.pdf / .docx
+    ├── 00-项目报告.pdf        （有 pdf 就不留 docx）
     ├── readme.txt
-    ├── 会议记录/
-    ├── 个人任务及感想/
-    ├── 演示视频/
-    ├── 源程序/           git 跟踪文件快照（排除 submission/ 与 deliverables 的 pdf/docx）
-    └── 提交说明.txt
+    ├── 可执行程序/             三端产物（CI 打包时注入，本机自测为空）
+    ├── 会议记录/               仅 pdf
+    ├── 个人任务及感想/          仅 pdf
+    ├── 测试用例/               12 个可导入 txt + 说明.txt
+    ├── 演示视频/               mp4
+    └── 源程序/                 git 跟踪文件快照（排除 submission/ 与 deliverables 的 pdf/docx）
+
+    包内不带 .sha256 与 提交说明.txt（清单只在本脚本控制台输出）。
 
 用法：
     uv run python tools/package_deliverables.py              # 自动先刷新 submission/

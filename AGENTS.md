@@ -38,7 +38,7 @@ TopoSort/
 ├── report/             # 报告构建输入：老师模板 docx + mermaid 图源 + data/ 演示数据（产物进 submission/）
 ├── submission/         # ★ 唯一正式提交材料目录（由 tools/build_submission.py 刷新）
 │   ├── readme.txt
-│   ├── 00-项目报告.docx / 00-项目报告.pdf   # 报告为套老师模板的 docx 及其 PDF
+│   ├── 00-项目报告.docx / 高级算法实践-项目报告-Group01.pdf   # 报告为套老师模板的 docx 及其导出 PDF（PDF 名允许「含项目报告」变体）
 │   ├── 会议记录/       # 5 次组会 docx + pdf
 │   ├── 个人任务及感想/  # 5 人 docx + pdf
 │   ├── 可执行程序/     # 三端单文件产物（约143M，不入git；CI打包时由release.yml注入）

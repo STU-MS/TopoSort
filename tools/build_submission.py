@@ -10,10 +10,12 @@
     submission/
     ├── readme.txt                    ← 从仓库根 readme.txt 同步
     ├── 00-项目报告.docx               ← 报告构建侧产出，本脚本不动
-    ├── 00-项目报告.pdf                ← 组长导出，本脚本不动
+    ├── 高级算法实践-项目报告-Group01.pdf ← 组长导出，本脚本不动（允许含「项目报告」的改名）
     ├── 会议记录/                      ← deliverables/docx|pdf/2026-*.{docx,pdf}
     ├── 个人任务及感想/                 ← deliverables/docx|pdf/0?-*-个人任务及感想.{docx,pdf}
-    └── 演示视频/                      ← 空目录占位（.gitkeep）
+    ├── 可执行程序/                    ← CI 由 release.yml 注入三端产物，本脚本不动（.gitkeep 占位）
+    ├── 测试用例/                      ← 12 个可导入 txt + 说明.txt，入 git，本脚本不动
+    └── 演示视频/                      ← mp4 走 git LFS，本脚本仅保 .gitkeep 占位
 
 用法：
     uv run python tools/build_submission.py

@@ -1,10 +1,10 @@
 TopoSort —— 拓扑排序动画演示程序
 交付说明 / 三端运行与构建指南
 ================================================================================
-版本：1.0.0            整理日期：2026-09-27
+版本：1.0.1            整理日期：2026-09-27
 组别：第一组            交付包：group01.zip
 仓库：https://github.com/STU-MS/TopoSort
-发布页：https://github.com/STU-MS/TopoSort/releases/tag/v1.0.0
+发布页：https://github.com/STU-MS/TopoSort/releases/latest
 打包方式：PyInstaller 单文件（Linux/Windows）/ onedir + .app（macOS），
           目标机无需安装 Python
 
@@ -15,7 +15,7 @@ TopoSort —— 拓扑排序动画演示程序
 
   * 解析输入并画成分层有向图；
   * 动画演示 Kahn 拓扑排序的全过程（节点消耗、候选池变化、分叉多路伪并发泳道）；
-  * 输出所有合法拓扑序，并给出条数；
+  * 输出尽可能多的合法拓扑序（界面按上限 2000 条列出，超限时如实给出总数估算）并给出条数；
   * 检测环并明确指出卡住的节点；
   * 支持调速 / 暂停 / 单步 / 跳完，结果可导出 txt、画面可导出 png。
 
@@ -25,7 +25,7 @@ TopoSort —— 拓扑排序动画演示程序
 二、最快上手（三端）
 --------------------------------------------------------------------------------
 推荐直接从发布页下载对应产物（比自行构建省事）：
-    https://github.com/STU-MS/TopoSort/releases/tag/v1.0.0
+    https://github.com/STU-MS/TopoSort/releases/latest
 
 【Windows】
   1) 下载 TopoSort.exe，放到任意目录，双击运行。
@@ -43,7 +43,8 @@ TopoSort —— 拓扑排序动画演示程序
   3) 校验完整性：
          shasum -a 256 TopoSort-macos.zip
   4) macOS 采用 onedir 打包（不是单文件），因此**启动无需解压**，比 Windows 版快。
-     原因见第七节：PyInstaller 已弃用 macOS 的 onefile+windowed 组合。
+     原因：PyInstaller 已弃用 macOS 的 onefile+windowed 组合
+     （evidence/decisions/2026-09-21-打包发布方案.md）。
 
 【Linux】
   1) 下载 TopoSort，给可执行权限后运行：
@@ -92,26 +93,17 @@ uv 会按 pyproject.toml 的 requires-python 自行准备解释器。
     全部封装在 tools/build.py 内部。
 
 
-四、产物清单与校验值（v0.1.0 发布实测；最终提交版 v1.0.0 的体积与校验值见 Release 页）
+四、产物清单与校验值
 --------------------------------------------------------------------------------
-  平台     产物                  体积          SHA256
-  -------  --------------------  ------------  ----------------------------------------------------------------
-  Linux    TopoSort              67,121,240 B  4b01313c0fd21c929e1350f57cf3aa7637cfbb0046c8ab38e77b6ad82567daf9
-                                 (64.0 MB)
-  Windows  TopoSort.exe          48,753,119 B  0691424b1ba2aa3157a6850a0b37dacebfef7adaf098272ff00021a042679ff4
-                                 (46.5 MB)
-  macOS    TopoSort-macos.zip    36,649,790 B  d13b8d8eb4cd30337899050ec6537b114d4d1d379558593ed72641f8e619a4dc
-           （内含 .app，          (35.0 MB)
-             解压后约 96.9 MB）
+三端产物每次都由 GitHub Actions（.github/workflows/release.yml）在打 tag 时构建并上传
+发布页。体积、SHA256、运行号这类随版本变动的数据**一律不写进本文件**，以发布页里
+与产物一同下载的 .sha256 文件为准（校验命令见第二节）。
 
-  以上三份均由 GitHub Actions 运行 35620768539（tag v0.1.0）产出，
-  每个产物都附带同名 .sha256 文件，可直接用系统校验命令复核（见第二节）。
-  重要：**不要拿本文件里写死的 SHA256 去校验你自己重新构建的产物。**
-     PyInstaller 的单文件产物**不是字节可复现的**：本机用完全相同参数连续构建三次，
-     得到 71,363,616 / 71,363,600 / 71,363,768 三种不同字节数与三个不同哈希
-     （PyInstaller 的 SOURCE_DATE_EPOCH 只影响 Windows 的 PE 时间戳，救不了这点）。
-     因此校验值只能「这次构建的产物配这次发布的哈希」——
-     请以发布页里与产物一同下载的 .sha256 文件为准。
+要记住的只有一条：**不要拿旧发布里的 SHA256 去校验新产物，也不要拿它校验你自行重新
+构建的产物。** PyInstaller 的单文件产物**不是字节可复现的**：本机用完全相同参数连续
+构建三次，得到三种不同字节数与三个不同哈希（PyInstaller 的 SOURCE_DATE_EPOCH 只影响
+Windows 的 PE 时间戳，救不了这点）。因此校验值只能「这次构建的产物配这次发布的哈希」
+——每个版本发布时自动生成并随产物上传。
 
 
 五、常见问题 FAQ
@@ -157,10 +149,12 @@ Q6. 中文输入 / 中文界面会不会乱码？
   submission/
   ├── readme.txt            本文件（由 tools/build_submission.py 从仓库根同步）
   ├── 00-项目报告.docx       项目报告（套老师下发模板，含分工表、截图、测试用例）
-  ├── 00-项目报告.pdf        上者导出的 PDF（最终提交形态）
+  ├── 高级算法实践-项目报告-Group01.pdf   上者导出的 PDF（最终提交形态，允许改名）
   ├── 会议记录/              5 次组会记录，docx + pdf 各一份
   ├── 个人任务及感想/         5 名组员的个人任务及感想，docx + pdf 各一份
-  └── 演示视频/              演示视频（≤50M；大文件不入 git，目录仅占位）
+  ├── 可执行程序/            三端产物（不入 git，CI 打包时由 release.yml 注入）
+  ├── 测试用例/              12 个可导入数据 txt + 说明.txt（入 git）
+  └── 演示视频/              演示视频 mp4（≤50M，走 git LFS）
 
 说明：
   * 报告形态：**docx 为套用老师模板的可编辑版，PDF 为其导出件**，两者内容一致。
@@ -175,33 +169,41 @@ Q6. 中文输入 / 中文界面会不会乱码？
   * 重新生成提交包（仓库根 group01.zip）：
         uv run python tools/build_submission.py
         uv run python tools/package_deliverables.py
-    包内顶层为 `group01/`，含上述各项 + `源程序/`（git 跟踪文件快照）+ `提交说明.txt`。
+    包内顶层为 `group01/`，含上述各项 + `源程序/`（git 跟踪文件快照）。
+    有 pdf 就不留 docx，包内不带 .sha256 与 提交说明.txt（组长定稿，见
+    evidence/decisions/2026-09-27-提交包内容定案.md）。
 
 
 七、交付包（zip）组装清单
 --------------------------------------------------------------------------------
   [x] 源码（整个仓库，不含 .venv/ build/ dist/ __pycache__/）
   [x] 本文件 readme.txt
-  [x] 三端可执行产物（Linux / Windows / macOS 均已在 Release v1.0.0 中）
-  [x] 项目报告 docx + PDF（submission/00-项目报告.*）
-  [ ] 演示视频（按 tools/demo_midterm.py 录屏，放入 submission/演示视频/）
-  [x] 会议记录（submission/会议记录/）
-  [ ] evidence/ 素材库（决策、截图、测试数据、benchmarks.csv；在 源程序/ 内一并提交）
-  [x] 分工表（见 submission/00-项目报告）
+  [x] 三端可执行产物（CI 打包时由 release.yml 注入 可执行程序/）
+  [x] 项目报告 PDF（submission/，有 pdf 就不留 docx）
+  [x] 会议记录（submission/会议记录/，5 份 pdf）
+  [x] 个人任务及感想（submission/个人任务及感想/，5 份 pdf）
+  [x] 测试用例（submission/测试用例/，12 个可导入 txt + 说明.txt）
+  [x] 演示视频（submission/演示视频/，mp4 走 git LFS）
+  [x] evidence/ 素材库（决策、截图、测试数据、benchmarks.csv；在 源程序/ 内一并提交）
+  [x] 分工表（见项目报告）
 
 
 八、相关留档（可复现性）
 --------------------------------------------------------------------------------
   打包与体积优化决策：evidence/decisions/2026-09-21-打包发布方案.md
   发布流水线决策：    evidence/decisions/2026-09-21-发布流水线（Release）.md
+  交付打包流水线：    evidence/decisions/2026-09-25-交付打包流水线.md
+  报告形态定案：      evidence/decisions/2026-09-26-报告改为模板docx交付.md
+  会议记录决策：      evidence/decisions/2026-09-26-会议记录改用老师模板.md
+  结果上限与估算：    evidence/decisions/2026-09-27-结果上限与总数估算.md
+  提交包内容定案：    evidence/decisions/2026-09-27-提交包内容定案.md
   性能与产物体积数据：evidence/benchmarks.csv（append-only，勿改旧行）
   技术栈定案：        evidence/decisions/2026-09-15-技术栈定案.md
   打包脚本：          tools/build.py（三端一致入口，参数与 excludes 均封装在内）
   提交目录脚本：      tools/build_submission.py（刷新 submission/）
   会议记录 docx：     tools/build_minutes.py（套老师会议记录模板填内容）
   会议记录 PDF：      tools/minutes_html.py（同版式 HTML → Chrome 打印）
-  会议记录决策：      evidence/decisions/2026-09-26-会议记录改用老师模板.md
   提交包脚本：        tools/package_deliverables.py（生成 group01.zip）
   发布工作流：        .github/workflows/release.yml
-  任务单：            GitHub Issue #8（T7 打包发布）
+  任务单：            GitHub Issue #8（T7 打包发布）· #46（提交包定案）
 ================================================================================

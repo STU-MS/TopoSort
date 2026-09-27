@@ -2,7 +2,7 @@
 
 > CST4823A 高级算法原理实践 · 小组课程项目
 
-输入 `<a,b>` 先修关系 → 有向图分层渲染 → **动画演示排序全过程**（候选队列、节点逐个消耗、分叉点多路并推）→ 输出尽可能多的拓扑序列，含环检测。
+输入 `<a,b>` 先修关系 → 有向图分层渲染 → **动画演示排序全过程**（候选队列、节点逐个消耗、分叉点多路并推）→ 输出尽可能多的拓扑序列（界面按上限 2000 条列出，超限时如实给出总数估算），含环检测。
 
 ## 新成员 / AI 代理请先读这两份
 
@@ -15,11 +15,13 @@
 |---|---|---|
 | 语言 | Python 3.11+ | |
 | GUI | PySide6（QGraphicsView） | 动画完全可控 |
-| 打包 | PyInstaller | 三端单文件：Windows/macOS/Linux |
+| 打包 | PyInstaller | 三端产物：Windows/Linux 单文件，macOS onedir + .app（三端均由 CI 构建） |
 | **工程管理** | **uv（唯一标准）** | 依赖、虚拟环境、运行、测试全走 uv |
 | 测试 | pytest | 用例数据在 `evidence/test-data/` |
 
 决策记录：`evidence/decisions/` · [Issue #1](https://github.com/STU-MS/TopoSort/issues/1)
+
+最新产物与演示视频请到 [发布页](https://github.com/STU-MS/TopoSort/releases/latest) 下载。
 
 ## 快速开始（uv，唯一姿势）
 
@@ -38,7 +40,7 @@ uv run python app/main.py
 uv run pytest
 
 # 4. 打包单文件（产物在 dist/，需在目标平台上各自构建：Windows 产物走 GitHub Actions）
-uv run pyinstaller --onefile --noconsole app/main.py
+uv run python tools/build.py
 ```
 
 > ⚠️ 本项目**禁止** `pip install` 裸装依赖：加依赖 = 改 `pyproject.toml` → `uv add 包名` → 提交 `uv.lock`。
@@ -48,18 +50,20 @@ uv run pyinstaller --onefile --noconsole app/main.py
 
 | 平台 | 开发 | 打包 | 说明 |
 |---|---|---|---|
-| Windows | ✅ | ✅ CI 产出 | 产物由 Actions windows-latest 构建并附 SHA256 |
-| macOS | ✅ | ✅ 本机 | |
-| Linux | ✅ | ✅ 本机 | |
+| Windows | ✅ | ✅ CI 产出 | Actions windows-latest 构建，随产物附 SHA256 |
+| macOS | ✅ | ✅ CI 产出 | onedir + .app，随产物附 SHA256 |
+| Linux | ✅ | ✅ CI 产出 | 随产物附 SHA256 |
 
 ## 仓库结构
 
 ```
 ├── app/            # 源码（models / events / scene / ui / main）
-├── deliverables/   # 最终交付文档（报告 + 6 份文档，md 撰写）
-├── minutes/        # 会议记录（每周 ≥1 篇，模板见 _模板.md）
+├── submission/     # ★ 唯一正式提交材料目录（报告/会议记录/个人感想/测试用例/视频/可执行程序）
+├── deliverables/   # 过程文档/素材（分章 md 与 docx/pdf 中间产物，非提交目录）
+├── minutes/        # 会议记录（源为 YYYY-MM-DD-主题.md，套老师模板出 docx/pdf）
 ├── evidence/       # ★ 素材库：决策/截图/性能数据/测试数据（只进不改）
 ├── tools/          # 辅助脚本
+├── report/         # 报告构建输入（老师模板 docx + mermaid 图源 + 演示数据）
 └── docs/           # 老师下发的原始作业文件（只读）
 ```
 
