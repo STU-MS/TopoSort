@@ -74,12 +74,12 @@ def find_videos() -> list[Path]:
 
 
 def find_binaries() -> list[Path]:
-    """三端可执行产物：submission/可执行程序/ 下全部文件（不含子目录）。
+    """三端可执行产物：submission/可执行程序/ 下全部文件（不含子目录、忽略占位 .gitkeep）。
 
     由 release.yml 的 package job 在 CI 里注入构建矩阵产物；本机直接打包时
     该目录为空 → 打警告并继续（组员本地自测包不含二进制属正常）。
     """
-    return dir_files(SUBMISSION / "可执行程序")
+    return [p for p in dir_files(SUBMISSION / "可执行程序") if p.name != ".gitkeep"]
 
 
 def refresh_submission() -> None:
