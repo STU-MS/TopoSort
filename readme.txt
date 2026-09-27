@@ -68,7 +68,7 @@ uv 会按 pyproject.toml 的 requires-python 自行准备解释器。
 常用开关：
 
     uv run python tools/build.py --smoke
-        打包后追加「空目录启动冒烟」：把产物拷到临时空目录，剥离
+        打包后追加「空目录启动自检」：把产物拷到临时空目录，剥离
         PYTHONPATH/PYTHONHOME/VIRTUAL_ENV 等变量，以 offscreen 方式启动并
         断言其进入事件循环、stderr 无异常。CI 与本机验证都用它。
 
