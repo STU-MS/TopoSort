@@ -3,6 +3,10 @@
 
 方案见 evidence/decisions/2026-09-25-doc转PDF方案.md（pandoc + Chrome headless，零新增仓库依赖）。
 
+**会议记录不在本脚本管**：`minutes/*.md` 已改走老师下发的《会议记录》模板——
+docx 由 `tools/build_minutes.py` 在模板副本上原地填内容，PDF 由
+`tools/minutes_html.py` 用同版式 HTML 打印（见 evidence/decisions/2026-09-26-会议记录改用老师模板.md）。
+
 用法：
     uv run python tools/make_pdf.py            # 转换全部
     uv run python tools/make_pdf.py --skip-docx
@@ -30,11 +34,12 @@ ROOT = Path(__file__).resolve().parent.parent
 OUT_PDF = ROOT / "deliverables" / "pdf"
 OUT_DOCX = ROOT / "deliverables" / "docx"
 
-# 源文件：交付文档 + 个人感想 + 会议记录（跳过模板）
+# 源文件：交付文档 + 个人感想（跳过模板）
+# 会议记录不在此列（改由 build_minutes.py / minutes_html.py 套老师模板产出，
+# 否则 pandoc 会覆盖掉那批模板版式的 docx/pdf）。
 SOURCES = (
     sorted((ROOT / "deliverables").glob("*.md"))
     + sorted((ROOT / "deliverables" / "personal").glob("*.md"))
-    + sorted(p for p in (ROOT / "minutes").glob("*.md") if not p.name.startswith("_"))
 )
 
 CHROME_CANDIDATES = (

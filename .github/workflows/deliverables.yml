@@ -10,8 +10,9 @@ name: Deliverables
 #   跑得慢，不该拖累每个 PR 的 CI。
 #
 # 为什么用 `python3` 直接跑、不 `uv sync`：
-#   tools/make_pdf.py 与 tools/package_deliverables.py 只用标准库，pandoc/Chrome
-#   是本机外部工具（非仓库依赖，见上述决策）。走 uv 只会白等 PySide6 安装。
+#   tools/make_pdf.py / build_minutes.py / minutes_html.py / package_deliverables.py
+#   都只用标准库，pandoc/Chrome 是本机外部工具（非仓库依赖，见上述决策）。
+#   走 uv 只会白等 PySide6 安装。
 #
 # 为什么用 runner 自带的 gh CLI、而不是第三方 release Action：
 #   AGENTS.md 规定新增依赖须先讨论留档；gh 已预装、actions/checkout 与
@@ -56,6 +57,16 @@ jobs:
           pandoc --version | head -n 1
           google-chrome --version
           fc-list :lang=zh | head -n 3
+
+      # 会议记录（5 份）：docx 走「在老师下发的会议记录模板上原地填内容」，
+      # PDF 走同版式 HTML + Chrome 打印。模板副本 minutes/template.docx 已入库，
+      # 因此 runner 上不需要 ONLYOFFICE / x2t。
+      # 必须排在 make_pdf.py 之前：make_pdf.py 已不再处理 minutes/*.md。
+      - name: 生成会议记录（老师模板 docx + 同版式 PDF）
+        run: |
+          set -euo pipefail
+          python3 tools/build_minutes.py
+          python3 tools/minutes_html.py
 
       # CI=true 由 GitHub Actions 默认设置；make_pdf.py 检测到它会给 Chrome 追加
       # --no-sandbox，否则 runner 上的 Chrome 会因 sandbox 不可用直接拒绝启动。

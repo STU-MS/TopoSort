@@ -165,6 +165,10 @@ Q6. 中文输入 / 中文界面会不会乱码？
 
 说明：
   * 报告形态：**docx 为套用老师模板的可编辑版，PDF 为其导出件**，两者内容一致。
+  * 会议记录形态：**docx 由 tools/build_minutes.py 在老师下发的《会议记录》模板
+    （docs/meeting-minutes-template.doc）副本上原地填内容，PDF 由 tools/minutes_html.py
+    用同版式 HTML 打印**；两份产物同出一源（tools/minutes_data.py 解析 minutes/*.md），
+    字段与正文逐块一致。
   * `deliverables/` 是写作过程中的素材/过程文档（md 源、分章草稿），
     不是提交目录；`submission/` 才是交给老师的材料。
   * 刷新提交目录：
@@ -195,6 +199,9 @@ Q6. 中文输入 / 中文界面会不会乱码？
   技术栈定案：        evidence/decisions/2026-09-15-技术栈定案.md
   打包脚本：          tools/build.py（三端一致入口，参数与 excludes 均封装在内）
   提交目录脚本：      tools/build_submission.py（刷新 submission/）
+  会议记录 docx：     tools/build_minutes.py（套老师会议记录模板填内容）
+  会议记录 PDF：      tools/minutes_html.py（同版式 HTML → Chrome 打印）
+  会议记录决策：      evidence/decisions/2026-09-26-会议记录改用老师模板.md
   提交包脚本：        tools/package_deliverables.py（生成 group01.zip）
   发布工作流：        .github/workflows/release.yml
   任务单：            GitHub Issue #8（T7 打包发布）

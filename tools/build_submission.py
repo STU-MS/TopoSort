@@ -38,6 +38,17 @@ VIDEO_DIR = SUBMISSION / "演示视频"
 PROTECTED = ("00-项目报告.docx", "00-项目报告.pdf")
 
 
+def protected_path(name: str) -> Path | None:
+    """报告 docx/pdf 允许改名（组长起的「高级算法实践-项目报告-Group01.pdf」也认）。"""
+    p = SUBMISSION / name
+    if p.exists():
+        return p
+    if name.endswith(".pdf"):
+        for cand in sorted(SUBMISSION.glob("*项目报告*.pdf")):
+            return cand
+    return None
+
+
 def is_minutes(name: str) -> bool:
     return name.startswith("2026-") and name.endswith((".docx", ".pdf"))
 
@@ -96,8 +107,8 @@ def main() -> int:
 
     # 报告由其他环节产出，这里只提示，不创建
     for name in PROTECTED:
-        p = SUBMISSION / name
-        mark = "已存在" if p.exists() else "待产出（本脚本不动）"
+        found = protected_path(name)
+        mark = f"已存在：{found.name}" if found else "待产出（本脚本不动）"
         print(f"   {name:<24}: {mark}")
 
     # docx / pdf 应成对出现，缺对时告警（不视为错误）
