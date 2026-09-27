@@ -156,9 +156,11 @@ jobs:
         run: |
           set -euo pipefail
           mkdir -p submission/可执行程序
-          cp artifacts/TopoSort submission/可执行程序/
-          cp artifacts/TopoSort.exe submission/可执行程序/
-          cp artifacts/TopoSort-macos.zip submission/可执行程序/
+          # download-artifact(merge-multiple) 会保留工件内的相对路径（dist/…），
+          # 不猜具体层级：按文件名从 artifacts 递归取（v1.0.1 实测在 dist/ 下）
+          cp "$(find artifacts -type f -name TopoSort -print -quit)"          submission/可执行程序/
+          cp "$(find artifacts -type f -name TopoSort.exe -print -quit)"     submission/可执行程序/
+          cp "$(find artifacts -type f -name TopoSort-macos.zip -print -quit)" submission/可执行程序/
           ls -l submission/可执行程序/
 
       # 会议记录/个人感想的 docx+pdf 需要先在 runner 上生成（build_submission.py
