@@ -120,6 +120,35 @@ class TestLayers:
         assert layers["D"] == 2 and layers["E"] == 1
 
 
+class TestRealCourseGraphs:
+    """真实课程图：任务书图1（15 门课）与学业指南计算机培养方案（44 门课 86 条先修关系）。
+
+    数据来源：`report/data/figure1-courses.txt`（任务书图1 逐边核对转录）、
+    `report/data/study-guide-cs.txt`（2024 版学业指南第 287–291 页附表1「先修课程要求」列）。
+    只做结构/前缀断言，**不做全量枚举**：009 有 156 万条、010 是 10^41 量级。
+    """
+
+    @pytest.mark.parametrize("stem", ["009-任务书图一", "010-学业指南计算机培养方案"])
+    def test_structure_layers_and_first_orders(self, stem):
+        text, expected = load_case(stem)
+        g = parse(text)
+        assert len(g.nodes) == expected["nodes"]
+        assert len(g.edges) == expected["edges"]
+        assert g.cycle_nodes() == frozenset(expected["cycle_nodes"])
+        assert max(g.layers().values()) + 1 == expected["layer_count"]
+        assert list(g.iter_topo_orders(max_count=3)) == expected["orders_capped"]
+
+    def test_figure1_exact_count(self):
+        """任务书图1：合法序恰 1,566,180 条（精确计数约 4s；界面在 2000 条处截断并估算总数）。"""
+        text, expected = load_case("009-任务书图一")
+        assert parse(text).count_orders() == expected["count"] == 1566180
+
+    def test_guide_graph_count_is_astronomical(self):
+        """44 门课图精确计数不可终止 ⇒ 用抽样估计说明量级（>1e10 已足够）。"""
+        text, _ = load_case("010-学业指南计算机培养方案")
+        assert parse(text).estimate_orders() > 10**10
+
+
 class TestEstimateOrders:
     """抽样估计（结果数阶乘级爆炸、精确计数跑不完时的量级）：
     evidence/decisions/2026-09-27-结果上限与总数估算.md"""

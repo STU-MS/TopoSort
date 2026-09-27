@@ -18,6 +18,11 @@ from app.models import Graph  # noqa: E402
 
 TESTDATA = ROOT / "evidence" / "test-data"
 
+# 真实课程图不生成 golden：009 有 156 万条序、010 是 10^41 量级，事件流会跑到天荒地老
+# （且 .events.json 会大到无意义）。它们的结构断言见 app/tests/test_models.py 的
+# TestRealCourseGraphs。
+NO_GOLDEN = {"009-任务书图一", "010-学业指南计算机培养方案"}
+
 
 def graph_from_in(path: Path) -> Graph:
     nodes, edges = set(), set()
@@ -35,6 +40,9 @@ def graph_from_in(path: Path) -> Graph:
 
 def main() -> None:
     for in_file in sorted(TESTDATA.glob("*.in")):
+        if in_file.stem in NO_GOLDEN:
+            print(f"{in_file.name}: 跳过（真实课程图，结果数过大，不生成 golden）")
+            continue
         events = list(TopoPlayer(graph_from_in(in_file)).iter_events())
         out = in_file.with_suffix(".events.json")
         body = ",\n ".join(json.dumps(event_to_dict(e), ensure_ascii=False) for e in events)
