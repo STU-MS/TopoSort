@@ -24,3 +24,8 @@ deliverables/docx/
 # 演示视频体积大（>50M），不入 git，仅保留占位文件
 submission/演示视频/*
 !submission/演示视频/.gitkeep
+!submission/演示视频/演示视频-Group01.mp4
+
+# 三端可执行产物体积大（约 143M），不入 git：CI 打包时由 release.yml 注入
+submission/可执行程序/*
+!submission/可执行程序/.gitkeep

@@ -92,7 +92,7 @@ jobs:
     if: startsWith(github.ref, 'refs/tags/')
     runs-on: ubuntu-latest
     env:
-      # 本 job 刻悥不做 actions/checkout（不需要源码，只需产物），因此没有 .git 目录，
+      # 本 job 不做 actions/checkout（不需要源码，只需产物），因此没有 .git 目录，
       # gh 无法自行推断仓库——必须显式给 GH_REPO，否则报：
       #   failed to run git: fatal: not a git repository (or any of the parent directories): .git
       GH_REPO: ${{ github.repository }}
@@ -126,4 +126,86 @@ jobs:
           printf '待传产物：\n%s\n' "${files[@]}"
           gh release upload "$TAG" "${files[@]}" --clobber
           echo "=== Release 资产 ==="
+          gh release view "$TAG" --json assets -q '.assets[] | "\(.name)  \(.size) bytes"'
+
+  # 最终交付包：拉 LFS 演示视频 + 注入三端二进制 → tools/package_deliverables.py
+  # 出完整 group01.zip，传到同一 Release。骨架（组长定稿，见
+  # evidence/decisions/2026-09-27-提交包内容定案.md）：
+  #   00-项目报告.pdf / readme.txt / 可执行程序/（3） / 会议记录/（5 pdf） /
+  #   个人任务及感想/（5 pdf） / 测试用例/（12 txt + 说明） / 演示视频/ / 源程序/
+  package:
+    name: "组装完整提交包（含视频与三端二进制）"
+    needs: [build, release]
+    # 手动触发时也跑（预演），只是不发 Release（下面上传步骤判 tag）
+    if: always() && needs.build.result == 'success'
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          lfs: true   # 拉真实演示视频（git-lfs track 的 mp4）
+
+      - uses: astral-sh/setup-uv@v5
+
+      - uses: actions/download-artifact@v4
+        with:
+          pattern: TopoSort-*
+          path: artifacts
+          merge-multiple: true
+
+      - name: 注入三端二进制到 submission/可执行程序/
+        run: |
+          set -euo pipefail
+          mkdir -p submission/可执行程序
+          cp artifacts/TopoSort submission/可执行程序/
+          cp artifacts/TopoSort.exe submission/可执行程序/
+          cp artifacts/TopoSort-macos.zip submission/可执行程序/
+          ls -l submission/可执行程序/
+
+      # 会议记录/个人感想的 docx+pdf 需要先在 runner 上生成（build_submission.py
+      # 只从 submission/ 复制现成文件）。_minutes_html.py 产出会议记录 PDF；
+      # 个人感想的 docx+pdf 由 make_pdf.py 产出（pandoc + Chrome，同文档流水线）。
+      # ubuntu-latest 自带 Chrome；中文字体必装，否则 PDF 中文变豆腐块（同 deliverables.yml）
+      - name: 安装 pandoc 与中文字体（供 make_pdf.py）
+        run: |
+          set -euo pipefail
+          sudo apt-get update
+          sudo apt-get install -y pandoc fonts-noto-cjk
+
+      - name: 生成会议记录与文档 pdf/docx
+        run: |
+          set -euo pipefail
+          python3 tools/build_minutes.py
+          python3 tools/minutes_html.py
+          CI=true python3 tools/make_pdf.py
+
+      - name: 组装完整提交包
+        run: python3 tools/package_deliverables.py
+
+      - name: 生成校验和
+        run: |
+          set -euo pipefail
+          sha256sum group01.zip > group01.zip.sha256
+          cat group01.zip.sha256
+
+      - uses: actions/upload-artifact@v4
+        with:
+          name: group01-full
+          path: |
+            group01.zip
+            group01.zip.sha256
+          if-no-files-found: error
+          retention-days: 14
+
+      - name: 上传完整提交包到 Release
+        if: startsWith(github.ref, 'refs/tags/')
+        env:
+          GH_REPO: ${{ github.repository }}
+          GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+        run: |
+          set -euo pipefail
+          TAG="${GITHUB_REF_NAME}"
+          gh release view "$TAG" >/dev/null 2>&1 || \
+            gh release create "$TAG" --title "TopoSort $TAG" --generate-notes
+          gh release upload "$TAG" group01.zip group01.zip.sha256 --clobber
+          echo "=== Release 资产（最终） ==="
           gh release view "$TAG" --json assets -q '.assets[] | "\(.name)  \(.size) bytes"'

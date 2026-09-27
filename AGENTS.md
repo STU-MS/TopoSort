@@ -41,7 +41,9 @@ TopoSort/
 │   ├── 00-项目报告.docx / 00-项目报告.pdf   # 报告为套老师模板的 docx 及其 PDF
 │   ├── 会议记录/       # 5 次组会 docx + pdf
 │   ├── 个人任务及感想/  # 5 人 docx + pdf
-│   └── 演示视频/       # 视频占位（大文件不入 git）
+│   ├── 可执行程序/     # 三端单文件产物（约143M，不入git；CI打包时由release.yml注入）
+│   ├── 测试用例/       # 12个可导入数据txt + 说明.txt（从evidence/test-data精出，入git）
+│   └── 演示视频/       # mp4走git LFS（.gitattributes）；.gitkeep占位
 ├── deliverables/        # 过程文档/素材（分章 md 与 docx/pdf 中间产物），非提交目录
 │   ├── 01-可行性研究报告.md
 │   ├── 02-需求分析.md
