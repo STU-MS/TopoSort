@@ -18,6 +18,7 @@
 代码自动转真，无需改动。
 """
 from pathlib import Path
+import math
 
 from PySide6.QtCore import Qt, QTimer
 from PySide6.QtWidgets import (
@@ -37,7 +38,24 @@ from app.ui.input_panel import FILE_FILTER, InputPanel
 from app.ui.lanes import LANE_LIMIT, LanesPanel
 from app.ui.results import ResultsPanel
 
-MAX_ORDERS = 2000  # 结果流上限：阶乘爆炸时截断，避免界面卡死
+MAX_ORDERS = 2000  # 结果流上限（结果列表与动画收工共用同一个数）：阶乘爆炸时截断，避免界面卡死
+
+
+def human_count(value) -> str:
+    """大数的中文可读写法（只保留 2 位有效数字——抽样估计不配更多位数）：
+
+    约 1,234 条 / 约 3.7 万条 / 约 130 万条 / 约 4.8 亿条 / 约 10^41 量级（抽样估计）
+    """
+
+    if value < 10**4:
+        return f"约 {int(value):,} 条"
+    exponent = int(math.floor(math.log10(value)))
+    rounded = round(value, -(exponent - 1))  # 2 位有效数字
+    if rounded < 10**8:
+        return f"约 {rounded / 10**4:.1f} 万条" if rounded < 10**5 else f"约 {rounded / 10**4:.0f} 万条"
+    if rounded < 10**12:
+        return f"约 {rounded / 10**8:.0f} 亿条"
+    return f"约 10^{exponent} 量级（抽样估计）"
 
 CANVAS_HINT_IDLE = "图画板：点「开始」后在此绘制关系图"
 
@@ -53,6 +71,7 @@ class MainWindow(QWidget):
         self.setWindowTitle("TopoSort — 拓扑排序演示")
         self._results: list[list[str]] = []
         self._error: str | None = None
+        self._total_hint = ""
         self._timeline = None
         self._board = None
         self._timer = QTimer(self)
@@ -138,10 +157,31 @@ class MainWindow(QWidget):
             self._fail("算法内核（models 模块）尚未完成，无法枚举拓扑序")
             return
 
-        self.results_panel.set_orders(self._results)
+        # 结果被上限截断时给个总数说法（抽样估计：精确计数在大图上跑不完）
+        self._total_hint = self._estimate_hint(graph)
+        self.results_panel.set_orders(self._results, truncated=bool(self._total_hint))
         self._mount_board(graph)
-        self._note(f"共 {len(self._results)} 条合法拓扑序")
+        if self._total_hint:
+            self._note(f"已列出前 {len(self._results)} 条（已达上限）· {self._total_hint}")
+        else:
+            self._note(f"共 {len(self._results)} 条合法拓扑序")
         self._start_animation(graph)
+
+    def _estimate_hint(self, graph) -> str:
+        """仅当结果数触到上限时才估算总数；未截断返回空串。"""
+
+        if len(self._results) < MAX_ORDERS:
+            return ""
+        try:
+            return f"结果总数{human_count(graph.estimate_orders())}"
+        except NotImplementedError:
+            return "实际结果更多（总数估算不可用）"
+
+    def _end_note(self) -> str:
+        """演示结束文案；结果被截断时带上总数说法，别让状态行看起来像「全部就这么多」。"""
+
+        base = f"演示结束：共 {len(self._results)} 条合法拓扑序"
+        return f"{base} · {self._total_hint}" if self._total_hint else base
 
     def results(self) -> list[list[str]]:
         return [list(o) for o in self._results]
@@ -160,7 +200,7 @@ class MainWindow(QWidget):
 
     def _start_animation(self, graph) -> None:
         try:
-            player = TopoPlayer(graph)
+            player = TopoPlayer(graph, max_completes=MAX_ORDERS)
             self._timeline = Timeline(
                 player,
                 lane_limit=LANE_LIMIT,
@@ -187,7 +227,7 @@ class MainWindow(QWidget):
         if getattr(self._timeline, "state", "finished") == "finished":
             self._timer.stop()
             self.set_running(False)
-            self._note(f"演示结束：共 {len(self._results)} 条合法拓扑序")
+            self._note(self._end_note())
 
     def _apply_events(self, events) -> None:
         for event in events or []:
@@ -236,7 +276,7 @@ class MainWindow(QWidget):
         except NotImplementedError:
             self._note("事件引擎（events 模块）尚未完成，跳完不可用")
             return
-        self._note(f"演示结束：共 {len(self._results)} 条合法拓扑序")
+        self._note(self._end_note())
 
     def _on_speed(self, ms: int) -> None:
         if self._timeline is not None and self._timer.isActive():
@@ -297,6 +337,7 @@ class MainWindow(QWidget):
         self._timeline = None
         self._results = []
         self._error = None
+        self._total_hint = ""
         self.results_panel.set_orders([])
         self.lanes.reset()
         self._drop_board()

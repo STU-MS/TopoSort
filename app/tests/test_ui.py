@@ -29,6 +29,10 @@ def win(qtbot):
     return w
 
 
+# 4 条独立 3 链：真值 12!/(3!^4) = 369,600 条 ≫ 上限 ⇒ 触发截断与总数估算
+WIDE_TEXT = "\n".join(f"<{c}{i},{c}{i + 1}>" for c in "ABCD" for i in (1, 2))
+
+
 class TestEndToEnd:
     def test_paste_start_results(self, win):
         win.set_input(CANON_TEXT)
@@ -54,3 +58,28 @@ class TestFileIO:
         win.save_to(f)
         win.load_from(f)
         assert win.input_text() == CANON_TEXT
+
+
+class TestResultCap:
+    """结果上限（MAX_ORDERS=2000）：列表与动画共用同一个数，超限时给出总数估算。"""
+
+    def test_list_and_animation_share_one_cap(self, win):
+        from app.ui.main_window import MAX_ORDERS
+
+        win.set_input(WIDE_TEXT)
+        win.click_start()
+        assert len(win.results()) == MAX_ORDERS
+        assert win._timeline.player.max_completes == MAX_ORDERS
+
+    def test_truncation_says_so_in_title_and_status(self, win):
+        win.set_input(WIDE_TEXT)
+        win.click_start()
+        assert "已达上限" in win.status.text()
+        assert "万条" in win.status.text()
+        assert "还有更多" in win.results_panel.title.text()
+
+    def test_small_graph_has_no_truncation_wording(self, win):
+        win.set_input(CANON_TEXT)
+        win.click_start()
+        assert win.status.text() == f"共 {CANON_COMPLETE_COUNT} 条合法拓扑序"
+        assert "更多" not in win.results_panel.title.text()

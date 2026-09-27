@@ -8,3 +8,8 @@
 2026-09-21,TopoSort-linux-x64-release-CI,,,,38800,package;size_mb=64.0;size_b=67121240;mode=onefile;strip=on;builder=actions-ubuntu-latest;run=35620768539
 2026-09-21,TopoSort-windows-x64-release-CI,,,,68200,package;size_mb=46.5;size_b=48753119;mode=onefile;strip=off;builder=actions-windows-latest;run=35620768539
 2026-09-21,TopoSort-macos-release-CI,,,,26500,package;size_mb=35.0;size_b=36649790;app_unpacked_b=101650598;mode=onedir;zip=on;strip=off;builder=actions-macos-latest;run=35620768539
+2026-09-27,任务书图1-精确计数,15,14,1566180,4190,count;source=report/data/figure1-courses.txt
+2026-09-27,任务书图1-动画(上限2000),15,14,2000,40,anim;max_completes=2000;ticks=20;worst_tick_ms=3;peak_mb=96
+2026-09-27,44门课图-动画(上限2000),44,86,2000,210,anim;max_completes=2000;ticks=48;worst_tick_ms=7;peak_mb=27
+2026-09-27,44门课图-动画(不设上限对照),44,86,0,10700,anim;max_completes=none;ticks=13;live_branches=2773293;peak_mb=7568;note=卡死
+2026-09-27,结果总数抽样估计,44,86,,207,estimate;samples=10000;seed=20260927;mag=1e41

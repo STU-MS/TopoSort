@@ -17,6 +17,9 @@
             按字典序稳定产出全部拓扑序（显式栈回溯，非递归）；
             max_count 截断；有环时产出为空序列。
         .count_orders() -> int           # 仅计数，不构造完整序列
+        .estimate_orders() -> int
+            抽样估计拓扑序总数（阶乘级爆炸、精确计数跑不完的图用得上）；
+            固定种子 ⇒ 同图两次调用结果相同；有环返回 0。
 
     CycleError
         Graph.layers() 收到有环图时抛出的 ValueError 子类。

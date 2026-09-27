@@ -3,7 +3,12 @@
 from dataclasses import dataclass
 from typing import Iterator
 
-from app.models.enumerator import analyze, count_orders, iter_topo_orders
+from app.models.enumerator import (
+    analyze,
+    count_orders,
+    estimate_order_count,
+    iter_topo_orders,
+)
 
 
 class CycleError(ValueError):
@@ -43,3 +48,8 @@ class Graph:
 
     def count_orders(self) -> int:
         return count_orders(self.nodes, self.edges)
+
+    def estimate_orders(self) -> int:
+        """抽样估计拓扑序总数（精确计数跑不完的大图用；有环返回 0）。"""
+
+        return estimate_order_count(self.nodes, self.edges)

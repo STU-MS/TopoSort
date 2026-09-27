@@ -4,6 +4,7 @@
 """
 
 import json
+import math
 from pathlib import Path
 
 import pytest
@@ -117,3 +118,37 @@ class TestLayers:
         assert layers["A"] == 0 and layers["B"] == 0
         assert layers["C"] == 1
         assert layers["D"] == 2 and layers["E"] == 1
+
+
+class TestEstimateOrders:
+    """抽样估计（结果数阶乘级爆炸、精确计数跑不完时的量级）：
+    evidence/decisions/2026-09-27-结果上限与总数估算.md"""
+
+    @pytest.mark.parametrize("k", [5, 10, 14])
+    def test_independent_nodes_estimate_exact(self, k):
+        """k 个互不相干的节点：每条序概率相同 ⇒ 估计值恰为 k!。"""
+        g = Graph(frozenset(f"n{i}" for i in range(k)), frozenset())
+        assert g.estimate_orders() == math.factorial(k)
+
+    def test_canon_graph_estimate_near_seven(self):
+        text, _ = load_case("001-标准五节点")
+        assert 6 <= parse(text).estimate_orders() <= 9
+
+    def test_sparse_chain_estimate_is_one(self):
+        text, _ = load_case("006-30节点稀疏链")
+        assert parse(text).estimate_orders() == 1
+
+    def test_estimate_is_deterministic(self):
+        """固定种子 ⇒ 两次调用逐位相等（可复现，与枚举器同一要求）。"""
+        text, _ = load_case("007-60节点稀疏链")
+        g = parse(text)
+        assert g.estimate_orders() == g.estimate_orders()
+
+    def test_cycle_estimate_is_zero(self):
+        assert parse("<A,B>\n<B,A>\n").estimate_orders() == 0
+
+    def test_wide_graph_within_ten_percent(self):
+        """4 条独立 3 链：真值 12!/(3!^4) = 369600，估计误差应 < 10%。"""
+        text = "\n".join(f"<{c}{i},{c}{i + 1}>" for c in "ABCD" for i in (1, 2))
+        g = parse(text)
+        assert abs(g.estimate_orders() - 369600) / 369600 < 0.10

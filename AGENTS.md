@@ -35,7 +35,7 @@ TopoSort/
 │   │   └── pool.py      #   候选池芯片 + PNG 导出
 │   └── ui/              # 界面层：组装与信号槽
 │       ├── main_window.py / input_panel.py / control_bar.py / lanes.py / results.py
-├── report/             # 报告构建输入：老师模板 docx + mermaid 图源（产物进 submission/）
+├── report/             # 报告构建输入：老师模板 docx + mermaid 图源 + data/ 演示数据（产物进 submission/）
 ├── submission/         # ★ 唯一正式提交材料目录（由 tools/build_submission.py 刷新）
 │   ├── readme.txt
 │   ├── 00-项目报告.docx / 00-项目报告.pdf   # 报告为套老师模板的 docx 及其 PDF

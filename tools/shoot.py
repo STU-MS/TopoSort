@@ -35,6 +35,7 @@ from PySide6.QtWidgets import QApplication  # noqa: E402
 from app.ui import MainWindow  # noqa: E402
 
 OUT = ROOT / "evidence" / "screenshots"
+DATA = ROOT / "report" / "data"          # 演示数据（图1 / 学业指南）——报告与截图共用同一份
 TODAY = date.today().strftime("%Y%m%d")
 WINDOW_SIZE = (1280, 800)          # 别调太小：整窗白底可能压到 20KB 以下
 MIN_BYTES = 20 * 1024              # check_docs.py 的截图门槛
@@ -118,6 +119,23 @@ def main() -> int:
         snap(win, "主窗口-泳道并推")
     else:
         skip("主窗口-泳道并推", "事件引擎（T3 events）未就绪，泳道无数据")
+
+    # ---- ⑤ 真实课程图：任务书图1（15 门课）+ 学业指南计算机培养方案（44 门课）----
+    # 两张图的结果数都远超上限（1,566,180 / 10^41 量级），用来截“已达上限 + 总数估算”的真实界面。
+    for name, data_file in (
+        ("主窗口-图1课程图", DATA / "figure1-courses.txt"),
+        ("主窗口-学业指南课程图", DATA / "study-guide-cs.txt"),
+    ):
+        if not data_file.exists():
+            skip(name, f"缺数据文件 {data_file.relative_to(ROOT)}")
+            continue
+        win.set_input(data_file.read_text(encoding="utf-8"))
+        win.click_start()
+        QTest.qWait(1200)
+        if win.results():
+            snap(win, name)
+        else:
+            skip(name, "结果流为空（算法模块未就绪？）")
 
     win.set_input("")  # 收尾：停掉计时器，别让脚本挂着不退
 

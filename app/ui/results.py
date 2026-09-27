@@ -44,12 +44,17 @@ class ResultsPanel(QWidget):
 
     # ---- 对外 API ----
 
-    def set_orders(self, orders) -> None:
+    def set_orders(self, orders, truncated: bool = False) -> None:
+        """灌入结果。truncated=True 表示这是被上限截断的前若干条（标题如实写明）。"""
+
         self._orders = [list(o) for o in orders]
         self.list.clear()
         for i, order in enumerate(self._orders, start=1):
             self.list.addItem(f"{i}. {' '.join(order)}")
-        self.title.setText(f"结果流（{len(self._orders)} 条）")
+        if truncated:
+            self.title.setText(f"结果流（已列出前 {len(self._orders)} 条 · 还有更多，见状态行）")
+        else:
+            self.title.setText(f"结果流（{len(self._orders)} 条）")
 
     def orders(self) -> list[list[str]]:
         return [list(o) for o in self._orders]
