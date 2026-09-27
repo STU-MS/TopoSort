@@ -1,10 +1,10 @@
 TopoSort —— 拓扑排序动画演示程序
 交付说明 / 三端运行与构建指南
 ================================================================================
-版本：0.1.0            整理日期：2026-09-21
+版本：1.0.0            整理日期：2026-09-27
 组别：第一组            交付包：group01.zip
 仓库：https://github.com/STU-MS/TopoSort
-发布页：https://github.com/STU-MS/TopoSort/releases/tag/v0.1.0
+发布页：https://github.com/STU-MS/TopoSort/releases/tag/v1.0.0
 打包方式：PyInstaller 单文件（Linux/Windows）/ onedir + .app（macOS），
           目标机无需安装 Python
 
@@ -25,7 +25,7 @@ TopoSort —— 拓扑排序动画演示程序
 二、最快上手（三端）
 --------------------------------------------------------------------------------
 推荐直接从发布页下载对应产物（比自行构建省事）：
-    https://github.com/STU-MS/TopoSort/releases/tag/v0.1.0
+    https://github.com/STU-MS/TopoSort/releases/tag/v1.0.0
 
 【Windows】
   1) 下载 TopoSort.exe，放到任意目录，双击运行。
@@ -92,7 +92,7 @@ uv 会按 pyproject.toml 的 requires-python 自行准备解释器。
     全部封装在 tools/build.py 内部。
 
 
-四、产物清单与校验值（v0.1.0 发布实测）
+四、产物清单与校验值（v0.1.0 发布实测；最终提交版 v1.0.0 的体积与校验值见 Release 页）
 --------------------------------------------------------------------------------
   平台     产物                  体积          SHA256
   -------  --------------------  ------------  ----------------------------------------------------------------
@@ -106,7 +106,6 @@ uv 会按 pyproject.toml 的 requires-python 自行准备解释器。
 
   以上三份均由 GitHub Actions 运行 35620768539（tag v0.1.0）产出，
   每个产物都附带同名 .sha256 文件，可直接用系统校验命令复核（见第二节）。
-
   重要：**不要拿本文件里写死的 SHA256 去校验你自己重新构建的产物。**
      PyInstaller 的单文件产物**不是字节可复现的**：本机用完全相同参数连续构建三次，
      得到 71,363,616 / 71,363,600 / 71,363,768 三种不同字节数与三个不同哈希
@@ -183,7 +182,7 @@ Q6. 中文输入 / 中文界面会不会乱码？
 --------------------------------------------------------------------------------
   [x] 源码（整个仓库，不含 .venv/ build/ dist/ __pycache__/）
   [x] 本文件 readme.txt
-  [x] 三端可执行产物（Linux / Windows / macOS 均已在 Release v0.1.0 中）
+  [x] 三端可执行产物（Linux / Windows / macOS 均已在 Release v1.0.0 中）
   [x] 项目报告 docx + PDF（submission/00-项目报告.*）
   [ ] 演示视频（按 tools/demo_midterm.py 录屏，放入 submission/演示视频/）
   [x] 会议记录（submission/会议记录/）
